@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BioSkeptic</title>
+<link rel="stylesheet" href="/static/style.css">
+<!-- default is dark (set on <html>); honor the user's saved choice if they've toggled before -->
+<script>try { const t = localStorage.getItem("theme"); if (t !== null) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+</head>
+<body>
+  <div class="layout">
+    <!-- ── sidebar ─────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <div class="brand">BioSkeptic</div>
+      <nav class="nav">
+        <button class="nav-item active" data-page="home">Home</button>
+        <button class="nav-item" data-page="about">About</button>
+        <button class="nav-item" data-page="api">API</button>
+        <button class="nav-item" data-page="performance">Performance</button>
+        <button class="nav-item" data-page="qa">Q&amp;A</button>
+      </nav>
+    </aside>
+
+    <!-- ── main ────────────────────────────────────────────────── -->
+    <main class="main">
+      <div class="toolbar">
+        <button id="compareToggle" class="toggle" title="Comparison mode">⇄ Compare</button>
+        <button id="themeToggle" class="toggle icon" title="Toggle dark mode">☾</button>
+      </div>
+
+      <!-- Home = the chat -->
+      <section class="page chat empty" id="page-home">
+        <div class="greeting">
+          <h1 class="hero-title">BioSkeptic</h1>
+          <p class="hero-sub">AI <span class="red-team">Red Team</span> for Drug Discovery</p>
+        </div>
+        <div class="messages"><div class="thread" id="log"></div></div>
+        <form class="composer" id="form">
+          <input id="input" autocomplete="off" placeholder="How can I help you?" autofocus>
+          <button id="send" type="submit" aria-label="Send">↑</button>
+        </form>
+      </section>
+
+      <!-- placeholder pages -->
+      <section class="page placeholder" id="page-about" hidden><h2>About</h2><p>Coming soon.</p></section>
+      <section class="page placeholder" id="page-api" hidden><h2>API</h2><p>Coming soon.</p></section>
+      <section class="page placeholder" id="page-performance" hidden><h2>Performance</h2><p>Coming soon.</p></section>
+      <section class="page placeholder" id="page-qa" hidden><h2>Q&amp;A</h2><p>Coming soon.</p></section>
+    </main>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

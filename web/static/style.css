@@ -1,0 +1,119 @@
+/* ── theme variables ─────────────────────────────────────────── */
+:root {
+  --bg: #f7f4ec;          /* warm off-white, not fully white */
+  --panel: #ece5d7;       /* sidebar — a touch browner so it reads as its own surface */
+  --text: #2b2a27;
+  --muted: #6f6d65;
+  --border: #e3dccb;
+  --bubble: #eae3d4;      /* user message bubble */
+  --accent: #c25f3c;      /* BioSkeptic orange — eased a bit */
+  --accent-text: #ffffff;
+  --red-team: #c74a39;    /* ~65% red / 35% orange, for "Red Team" — eased a bit */
+  --shadow: 0 1px 3px rgba(0, 0, 0, .06);
+}
+:root[data-theme="dark"] {
+  --bg: #1e1e1c;
+  --panel: #26261f;
+  --text: #eae8e0;
+  --muted: #9d9a90;
+  --border: #35342e;
+  --bubble: #2e2d27;
+  --accent: #e0764f;
+  --accent-text: #1e1e1c;
+  --red-team: #e85643;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .3);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text); background: var(--bg);
+}
+
+/* ── layout ──────────────────────────────────────────────────── */
+.layout { display: flex; height: 100%; }
+
+.sidebar {
+  width: 220px; flex: 0 0 220px; background: var(--panel);
+  border-right: 1px solid var(--border); padding: 20px 12px; display: flex; flex-direction: column; gap: 18px;
+}
+.brand {
+  font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 700;
+  color: var(--text); padding: 4px 8px;
+}
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  text-align: left; padding: 9px 12px; border: 0; border-radius: 8px; background: none;
+  color: var(--text); font-size: 14.5px; cursor: pointer;
+}
+.nav-item:hover { background: rgba(0, 0, 0, .05); }
+:root[data-theme="dark"] .nav-item:hover { background: rgba(255, 255, 255, .06); }
+.nav-item.active { background: rgba(200, 90, 52, .14); color: var(--accent); font-weight: 600; }
+
+.main { position: relative; flex: 1; min-width: 0; }
+
+/* ── top-right toggles ───────────────────────────────────────── */
+.toolbar { position: absolute; top: 14px; right: 18px; display: flex; gap: 8px; z-index: 5; }
+.toggle {
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer;
+}
+.toggle.icon { width: 34px; padding: 6px 0; font-size: 15px; }
+.toggle:hover { border-color: var(--accent); }
+.toggle.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+
+/* ── pages ───────────────────────────────────────────────────── */
+.page { height: 100%; }
+.placeholder { padding: 80px 40px; color: var(--muted); }
+.placeholder h2 { color: var(--text); }
+
+/* ── chat ────────────────────────────────────────────────────── */
+.chat { display: flex; flex-direction: column; padding: 0 24px; }
+.greeting { text-align: center; }
+.hero-title { font-family: Georgia, "Times New Roman", serif; font-size: 56px; font-weight: 700; line-height: 1.05; color: var(--accent); margin: 0; }
+.hero-sub { font-size: 19px; color: var(--muted); margin: 10px 0 0; }
+.red-team { font-weight: 700; color: var(--red-team); }
+
+/* empty state: logo + composer centered in the middle */
+.chat.empty { justify-content: center; align-items: center; }
+.chat.empty .messages { display: none; }
+.chat.empty .greeting { margin-bottom: 26px; }
+.chat.empty .composer { width: 100%; max-width: 720px; }
+
+/* active state: messages scroll on top, composer pinned to bottom */
+.chat.active .greeting { display: none; }
+.chat.active .messages { flex: 1 1 auto; overflow-y: auto; width: 100%; }
+.chat.active .composer { width: 100%; max-width: 760px; margin: 0 auto; }
+
+.thread { max-width: 760px; margin: 0 auto; padding: 24px 0; display: flex; flex-direction: column; gap: 20px; }
+
+/* messages: user in a bubble (right), BioSkeptic full-width (no bubble) */
+.msg.user { align-self: flex-end; max-width: 78%; padding: 11px 15px; border-radius: 14px; background: var(--bubble); white-space: pre-wrap; }
+.msg.bot { align-self: stretch; }
+.msg.bot a { color: var(--accent); }
+
+/* live status line */
+.status { color: var(--muted); font-style: italic; }
+.pulse { display: inline-block; margin-right: 7px; color: var(--accent); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+
+/* markdown inside BioSkeptic replies */
+.msg.bot > :first-child { margin-top: 0; }
+.msg.bot > :last-child { margin-bottom: 0; }
+.msg.bot h2, .msg.bot h3, .msg.bot h4 { margin: .6em 0 .3em; font-size: 15px; font-weight: 700; }
+.msg.bot p { margin: .55em 0; }
+.msg.bot ul, .msg.bot ol { margin: .4em 0; padding-left: 1.3em; }
+.msg.bot li { margin: .14em 0; }
+.msg.bot code { background: var(--bubble); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+
+/* composer */
+.composer { display: flex; gap: 8px; align-items: center; margin-bottom: 22px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px 8px 8px 16px; box-shadow: var(--shadow); }
+.composer input { flex: 1; border: 0; background: none; color: var(--text); font-size: 15px; outline: none; }
+.composer input::placeholder { color: var(--muted); }
+.composer button {
+  flex: 0 0 auto; width: 34px; height: 34px; border: 0; border-radius: 10px;
+  background: var(--accent); color: var(--accent-text); font-size: 17px; cursor: pointer;
+}
+.composer button:disabled { opacity: .45; cursor: default; }

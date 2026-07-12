@@ -1,0 +1,14 @@
+# local env / caches
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# secrets — never commit the API key
+.env
+
+# local reference only: not needed to run, and holds large data files (DRKG, notebooks)
+legacy/
+
+# build metadata
+*.egg-info/

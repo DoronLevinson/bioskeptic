@@ -1,0 +1,14 @@
+# Render Blueprint — deploys the BioSkeptic chat as a public web service.
+# On Render: New → Blueprint → connect this repo. Set ANTHROPIC_API_KEY in the dashboard (it is not committed).
+services:
+  - type: web
+    name: bioskeptic
+    runtime: python
+    plan: starter            # ~$7/mo, no idle sleep (reliable for a demo). Use "free" to save cost (it sleeps after ~15 min idle → slow cold start).
+    buildCommand: "pip install -e ."
+    startCommand: "uvicorn web.app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false          # set this in the Render dashboard, never in git
+      - key: PYTHON_VERSION
+        value: "3.12.8"
