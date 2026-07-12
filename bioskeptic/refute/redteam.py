@@ -80,23 +80,31 @@ def assess(report: Report) -> Assessment:
     blocks = []
     for f in report.flagged:
         info = BY_NAME.get(f.mechanism)
+        if not info:
+            blocks.append(f"- MECHANISM [{f.mechanism}]\n    what it found:   {f.explanation}")
+            continue
         blocks.append(
             f"- MECHANISM [{f.mechanism}]\n"
-            f"    what it checks:  {info.explanation if info else '(n/a)'}\n"
+            f"    what it checks:  {info.explanation}\n"
+            f"      (advanced):    {info.explanation_advanced}\n"
             f"    what it found:   {f.explanation}\n"
-            f"    reliability:     {info.reliability if info else '(n/a)'}\n"
-            f"    benchmark:       {info.evaluation if info else '(n/a)'}")
+            f"    reliability:     {info.reliability}\n"
+            f"      (advanced):    {info.reliability_advanced}\n"
+            f"    benchmark:       {info.evaluation}")
     flags = "\n".join(blocks)
     prompt = (
         f"You are BioSkeptic's reviewer weighing a red-team panel's flags on the claim: "
         f"{_claim_str(report.claim)}.\n\n"
         f"FIRED concerns — for each: what the check does, what it found, how reliable it is, and how it "
-        f"scored on our benchmark:\n{flags}\n\n"
+        f"scored on our benchmark. The '(advanced)' lines give the underlying databases, fields and "
+        f"thresholds:\n{flags}\n\n"
         f"Checked and clean: {', '.join(f.mechanism for f in report.clean) or 'none'}. "
         f"Not applicable / no data: {', '.join(report.not_applicable) or 'none'}.\n\n"
         "Weigh each fired flag against its reliability, benchmark performance, and your biology knowledge "
         "— a flag whose known blind spot fits this exact claim, or one from a noisy low-precision check, "
-        "is a likely mis-fire. Reply with ONLY a JSON object:\n"
+        "is a likely mis-fire. Keep your written assessment plain and concise; use the advanced/technical "
+        "and database detail only when it genuinely matters for THIS claim, not by default. Reply with "
+        "ONLY a JSON object:\n"
         '{"overall": "<1-2 sentences: does the claim look refuted, shaky, or fine, and why>",\n'
         ' "likely_misfires": ["<mechanism>: <one line why it is probably a false alarm>"],\n'
         ' "worth_digging": ["<mechanism>: <one line why it may be a real problem>"]}')
