@@ -116,3 +116,59 @@ def assess(report: Report) -> Assessment:
                           worth_digging=data.get("worth_digging") or [])
     except Exception:
         return Assessment(overall=raw.strip() or "(assessment unavailable)")
+
+
+# Short human titles for the report panel (the NAMEs are machine ids).
+_TITLES = {
+    "direction_of_effect": "Genetic direction of effect",
+    "not_causal_gene": "Causal gene at the locus",
+    "cis_mr_null": "Causal effect (genetic experiment)",
+    "text_mining_only": "Real evidence vs. text-mining",
+    "haploinsufficient_inhibited": "Dosage sensitivity",
+    "not_expressed_in_tissue": "Expressed in the affected tissue",
+    "absent_from_driver_cell": "Present in the disease's driver cell",
+    "mouse_ko_normal": "Mouse-knockout phenotype",
+}
+
+# Friendly source name from a link, for the panel's citation chips.
+def _source_label(url: str) -> str:
+    d = (url or "").lower()
+    for key, label in (("proteinatlas", "Human Protein Atlas"), ("opentargets", "Open Targets"),
+                       ("gtexportal", "GTEx"), ("pubmed", "PubMed"), ("epigraphdb", "EpiGraphDB"),
+                       ("cbioportal", "cBioPortal"), ("clinicalgenome", "ClinGen"), ("gnomad", "gnomAD")):
+        if key in d:
+            return label
+    return "source"
+
+
+# Serialize a Report + Assessment into one JSON-ready dict — the shape shared by the agent's memory
+# (as a tool result) and the UI report panel. Each mechanism row: title + what it checks + what it found
+# + cited links.
+def report_to_dict(report: Report, assessment: Assessment) -> dict:
+    def row(f: Finding) -> dict:
+        info = BY_NAME.get(f.mechanism)
+        return {
+            "name": f.mechanism,
+            "title": _TITLES.get(f.mechanism, f.mechanism.replace("_", " ").capitalize()),
+            "what_it_checks": info.explanation if info else "",
+            "finding": f.explanation,
+            "sources": [{"label": _source_label(u), "url": u} for u in f.sources if u],
+        }
+
+    c = report.claim
+    return {
+        "claim": {
+            "drug": (c.drug.name if c.drug else None),
+            "target": (c.target.symbol if c.target else None),
+            "disease": (c.disease.name if c.disease else None),
+            "direction": c.direction,
+        },
+        "assessment": {
+            "overall": assessment.overall,
+            "likely_misfires": assessment.likely_misfires,
+            "worth_digging": assessment.worth_digging,
+        },
+        "flagged": [row(f) for f in report.flagged],
+        "clean": [row(f) for f in report.clean],
+        "not_applicable": [{"name": n, "title": _TITLES.get(n, n)} for n in report.not_applicable],
+    }

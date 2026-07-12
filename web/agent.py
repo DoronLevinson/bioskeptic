@@ -33,9 +33,17 @@ When all three are pinned down, resolve them with resolve_* and STOP with a sing
 whenever you are." Do NOT give a verdict here — pinning down the entities is the whole job of Stage 1,
 whether or not you had to ask anything.
 
-STAGE 2 — red-team the claim. ONLY after the user tells you to go ahead, reason about whether the claim
-holds and give a verdict: SUPPORTED, MISMATCH (e.g. the drug's mechanism doesn't include the claimed
-target), or UNRESOLVED. Be specific and conversational; one claim at a time.
+STAGE 2 — red-team the claim. ONLY after the user tells you to go ahead:
+  • Call build_report ONCE, passing the resolved target symbol + Ensembl id, the disease name + EFO id,
+    the drug name, and the direction the drug acts on the target ('inhibit' = lowers/blocks/antagonist/
+    degrader, 'activate' = raises/agonist). If you know the drug's mechanism, supply the direction; for a
+    novel drug or a bare idea, ASK the user whether it raises or lowers the target before calling.
+  • build_report returns a full report: flagged concerns, checks that passed, not-applicable checks, and
+    an overall assessment (which already notes likely mis-fires). The report panel shows the details to
+    the user — your job is to NARRATE it.
+  • Write your take in warm, plain language a biology grad would follow: the main concern(s) and why,
+    which flags are probably false alarms (the assessment tells you) and why, and your overall read
+    (does the claim hold, look shaky, or look refuted). Educate, don't dump — no raw id/URL walls.
 
 Keep replies clean — don't dump raw database ids or URLs. Two exceptions: when you list candidates to
 confirm, include their profile links and descriptions (that's what lets the user verify); and if the user
@@ -51,32 +59,48 @@ def _as_str_tool(fn):
     return wrapper
 
 
-_TOOLS = [beta_tool(_as_str_tool(fn)) for fn in tools.ALL]
+# Like _as_str_tool, but also drops the raw dict result into `sink` — so stream_events can push the
+# report to the UI panel (a "report" SSE event) in addition to returning it to the model.
+def _capturing_tool(fn, sink: list):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        result = fn(*args, **kwargs)
+        sink.append(result)
+        return json.dumps(result)
+    return wrapper
 
 
 # Run one chat turn, yielding plain-dict events as they happen (the web layer turns these into SSE):
 #   {"type": "status", "tool": <tool name>}   -- each time Claude decides to call a tool
+#   {"type": "report", "data": <report dict>} -- the full red-team report, for the UI panel
 #   {"type": "reply",  "text": <final text>}  -- the assistant's final answer for this turn
 #   {"type": "error",  "message": <str>}      -- if anything fails
 def stream_events(messages: list[dict]):
+    reports: list = []   # build_report drops its result here so we can push it to the UI
+    turn_tools = ([beta_tool(_as_str_tool(fn)) for fn in tools.RESOLVERS]
+                  + [beta_tool(_capturing_tool(tools.build_report, reports))])
     try:
         runner = _client.beta.messages.tool_runner(
             model=MODEL,
             max_tokens=MAX_TOKENS,
             system=SYSTEM,
-            tools=_TOOLS,
+            tools=turn_tools,
             messages=messages,
             output_config={"effort": "medium"},  # snappier for chat; raise for the final demo
         )
         reply = ""
         # The runner yields one assistant message per round. A round that calls tools has tool_use blocks
-        # (the runner then executes them and loops); the final round ends the turn with the answer text.
+        # (the runner executes them, THEN loops); the final round ends the turn with the answer text.
         for message in runner:
             for block in message.content:
                 if block.type == "tool_use":
                     yield {"type": "status", "tool": block.name}
+            while reports:                        # a build_report ran in the prior round -> push it
+                yield {"type": "report", "data": reports.pop(0)}
             if message.stop_reason == "end_turn":
                 reply = "".join(b.text for b in message.content if b.type == "text")
+        while reports:                            # flush any report from the final round
+            yield {"type": "report", "data": reports.pop(0)}
         yield {"type": "reply", "text": reply or "(no reply)"}
     except Exception as e:
         yield {"type": "error", "message": f"{type(e).__name__}: {e}"}

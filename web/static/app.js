@@ -20,6 +20,55 @@ compareToggle.addEventListener("click", () => {
   // (does nothing else yet — wired up when we build the side-by-side panel)
 });
 
+// ── red-team report panel ─────────────────────────────────────────────────
+const reportPanel = document.getElementById("reportPanel");
+const reportBody = document.getElementById("reportBody");
+const reportClaim = document.getElementById("reportClaim");
+const reportToggle = document.getElementById("reportToggle");
+const reportClose = document.getElementById("reportClose");
+reportToggle.addEventListener("click", () => { reportPanel.hidden = !reportPanel.hidden; });
+reportClose.addEventListener("click", () => { reportPanel.hidden = true; });
+
+function srcChip(s) {
+  return `<a class="src-chip" href="${s.url}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`;
+}
+function mechCard(m, fired) {
+  const srcs = (m.sources || []).map(srcChip).join(" ");
+  return `<div class="mech-card ${fired ? "fired" : "clean"}">
+    <div class="mech-title">${esc(m.title)}<span class="mech-tag">${fired ? "flagged" : "passed"}</span></div>
+    <div class="mech-what">${esc(m.what_it_checks)}</div>
+    <div class="mech-finding">${esc(m.finding)}</div>
+    ${srcs ? `<div class="mech-src">${srcs}</div>` : ""}
+  </div>`;
+}
+function assessList(items, cls, heading) {
+  if (!items || !items.length) return "";
+  return `<div class="assess-list ${cls}"><div class="assess-h">${heading}</div>${
+    items.map((x) => `<div class="assess-item">${esc(x)}</div>`).join("")}</div>`;
+}
+function renderReport(d) {
+  const c = d.claim || {};
+  const dir = c.direction ? `<span class="dir">${esc(c.direction)}s</span> ` : "";
+  reportClaim.innerHTML = `<b>${esc(c.drug || "—")}</b> — ${dir}<b>${esc(c.target || "—")}</b> · ${esc(c.disease || "—")}`;
+  const a = d.assessment || {};
+  let html = `<div class="assess"><div class="assess-overall">${esc(a.overall || "")}</div>`;
+  html += assessList(a.worth_digging, "dig", "Worth investigating");
+  html += assessList(a.likely_misfires, "mis", "Likely false alarms");
+  html += `</div>`;
+  html += `<h4 class="report-sec">⚑ Concerns flagged (${d.flagged.length})</h4>`;
+  html += d.flagged.length ? d.flagged.map((m) => mechCard(m, true)).join("")
+                           : `<div class="report-none">Nothing flagged.</div>`;
+  html += `<h4 class="report-sec">✓ Checks that passed (${d.clean.length})</h4>`;
+  html += d.clean.map((m) => mechCard(m, false)).join("");
+  if ((d.not_applicable || []).length) {
+    html += `<h4 class="report-sec">— Not applicable (${d.not_applicable.length})</h4>`;
+    html += `<div class="na-chips">${d.not_applicable.map((m) => `<span class="na-chip">${esc(m.title)}</span>`).join("")}</div>`;
+  }
+  reportBody.innerHTML = html;
+  reportToggle.hidden = false;
+  reportPanel.hidden = false;
+}
+
 // ── sidebar page switching ────────────────────────────────────────────────
 document.querySelectorAll(".nav-item").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -46,6 +95,7 @@ const LABELS = {
   resolve_target: "Resolving the target",
   suggest_diseases: "Scanning disease candidates",
   resolve_disease: "Resolving the disease",
+  build_report: "Running the red-team panel",
 };
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -145,6 +195,8 @@ form.addEventListener("submit", async (e) => {
         const event = JSON.parse(line.slice(5).trim());
         if (event.type === "status") {
           showStatus(bubble, event.tool);
+        } else if (event.type === "report") {
+          renderReport(event.data);
         } else if (event.type === "reply") {
           bubble.className = "msg bot";
           bubble.innerHTML = renderMarkdown(event.text);
