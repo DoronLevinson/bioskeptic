@@ -1,12 +1,12 @@
 import json
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from web import agent
+from web import agent, guard
 
 app = FastAPI()
 WEB = Path(__file__).parent
@@ -29,7 +29,13 @@ def index():
 # Stream the turn as Server-Sent Events (SSE): one "data: {json}\n\n" line per agent event.
 # The browser reads these live to show the status line, then renders the final reply.
 @app.post("/chat")
-def chat(body: ChatIn):
+def chat(body: ChatIn, request: Request):
+    ok, note = guard.allow(guard.client_ip(request))
+    if not ok:
+        def blocked():
+            yield f"data: {json.dumps({'type': 'reply', 'text': note})}\n\n"
+        return StreamingResponse(blocked(), media_type="text/event-stream")
+
     def sse():
         for event in agent.stream_events(body.messages):
             yield f"data: {json.dumps(event)}\n\n"
