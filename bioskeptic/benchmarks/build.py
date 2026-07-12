@@ -81,7 +81,7 @@ def _row(kind, drug, target, disease, direction, relation, label, negative_type,
 # Which mechanisms actually have a datum for this row (availability, not the fired/silent outcome).
 def _coverage(row):
     claim = ClaimTriple.from_benchmark_row(row)
-    return [m.NAME for m in MECHANISMS if m.available(claim)]
+    return [m.name for m in MECHANISMS if m.available(claim)]
 
 
 # Build the TRUE approved rows: one per (drug, primary target, approved disease), deduped + sampled.
