@@ -597,3 +597,23 @@ async function runComparison() {
   cmpSend.disabled = false;
 }
 cmpForm.addEventListener("submit", (e) => { e.preventDefault(); runComparison(); });
+
+// ── Data Refinement page: render the 100-row audited-relations table ────────
+async function renderDataTable() {
+  const wrap = document.getElementById("drTableWrap");
+  if (!wrap) return;
+  let rows;
+  try { rows = await (await fetch("/static/data_refinement.json")).json(); } catch (e) { return; }
+  const VLABEL = { true: "✓ true", false: "✗ false", borderline: "~ borderline" };
+  const body = rows.map((r) => {
+    const flag = r.flagged ? `<span class="dr-flag">⚑</span>` : `<span class="dr-dim">—</span>`;
+    const verdict = r.verdict ? `<span class="dr-v dr-v-${r.verdict}">${VLABEL[r.verdict]}</span>` : "";
+    return `<tr class="${r.flagged ? "dr-on" : ""}">` +
+      `<td>${esc(r.target || "—")}</td><td>${esc(r.disease || "(unresolved)")}</td>` +
+      `<td class="dr-c">${flag}</td><td>${verdict}</td><td class="dr-why">${esc(r.why || "")}</td></tr>`;
+  }).join("");
+  wrap.innerHTML = `<table class="dr-table"><thead><tr>` +
+    `<th>Target</th><th>Disease</th><th>Flagged</th><th>True / false</th><th>Why</th>` +
+    `</tr></thead><tbody>${body}</tbody></table>`;
+}
+renderDataTable();

@@ -1,0 +1,802 @@
+[
+ {
+  "target": "CSF3",
+  "disease": "melanoma",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "G-CSF; not a melanoma driver \u2014 a weak co-mention"
+ },
+ {
+  "target": "TCF4",
+  "disease": "colorectal neoplasm",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Resolves to TCF4/E2-2, not the Wnt/colorectal gene TCF7L2 \u2014 a gene-naming trap"
+ },
+ {
+  "target": "CD40LG",
+  "disease": "ovarian endometrioid adenocarcinoma with squamous differentiation",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "T-cell CD40-ligand; no role in this ovarian subtype"
+ },
+ {
+  "target": "ELK1",
+  "disease": "atherosclerosis",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Downstream ETS transcription factor; indirect at best"
+ },
+ {
+  "target": "NTRK1",
+  "disease": "bipolar disorder",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Speculative neurotrophin-signalling link"
+ },
+ {
+  "target": "RETN",
+  "disease": "mixed lobular and ductal breast carcinoma",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Adipokine; an epidemiological association, not a driver"
+ },
+ {
+  "target": "PRDX2",
+  "disease": "hepatocellular carcinoma",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Generic oxidative-stress link, not an HCC driver"
+ },
+ {
+  "target": "ACE",
+  "disease": "asthma",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Weak and confounded (ACE-inhibitor cough)"
+ },
+ {
+  "target": "KLHL6",
+  "disease": "nicotine dependence",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "B-cell receptor gene; the nicotine link is spurious"
+ },
+ {
+  "target": "PARK7",
+  "disease": "squamous cell carcinoma",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Generic redox (DJ-1) link"
+ },
+ {
+  "target": "CFL1",
+  "disease": "pancreas disorder",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Ubiquitous actin regulator; a generic co-mention"
+ },
+ {
+  "target": "EPAS1",
+  "disease": "osteosarcoma",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Generic hypoxia (HIF-2\u03b1) link, not osteosarcoma-specific"
+ },
+ {
+  "target": "FGF2",
+  "disease": "corneal neovascularization",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "false",
+  "why": "A genuine angiogenic factor central to neovascularisation; over-flagged (it's secreted, and its KO is redundant)"
+ },
+ {
+  "target": "EPO",
+  "disease": "inherited thrombocytopenia",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "true",
+  "why": "Wrong lineage \u2014 EPO drives red cells, not platelets (that's TPO)"
+ },
+ {
+  "target": "OCLN",
+  "disease": "cerebral infarction",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "false",
+  "why": "Occludin is a blood\u2013brain-barrier junction protein \u2014 relevant to stroke; over-flagged as a structural protein"
+ },
+ {
+  "target": "ANG",
+  "disease": "colonic neoplasm",
+  "flags": 3,
+  "flagged": true,
+  "verdict": "borderline",
+  "why": "Angiogenin \u2014 tumours need angiogenesis, but it's not colon-specific; leans generic"
+ },
+ {
+  "target": "IL6",
+  "disease": "neuralgia",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "IL18",
+  "disease": "myocardial ischemia",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "REN",
+  "disease": "subarachnoid hemorrhage",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "ASPH",
+  "disease": "Ewing sarcoma/peripheral primitive neuroectodermal tumor",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CRH",
+  "disease": "generalized epilepsy with febrile seizures plus, type 2",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MAPK8",
+  "disease": "rheumatoid arthritis",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "RGCC",
+  "disease": "pulmonary fibrosis",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "AHR",
+  "disease": "lung neoplasm",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "IGF1",
+  "disease": "breast neoplasm",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "FGFR1",
+  "disease": "inborn disorder of amino acid metabolism",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "NUCB2",
+  "disease": "fungal lung infectious disease",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MAGEA3",
+  "disease": "plasma cell myeloma",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CRNDE",
+  "disease": "colorectal neoplasm",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "FOXC1",
+  "disease": "glioma",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "SPARC",
+  "disease": "benign neoplasm of stomach",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "IL13RA2",
+  "disease": "glioma",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CRP",
+  "disease": "obesity disorder",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "HAND2",
+  "disease": "familial adenomatous polyposis 1",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "S100A9",
+  "disease": "generalized epilepsy with febrile seizures plus, type 2",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "PGK1",
+  "disease": "glioma",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TNFSF9",
+  "disease": "ovarian endometrioid stromal and related neoplasms",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "ADRB2",
+  "disease": "colorectal neoplasm",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "C7",
+  "disease": "myocardial ischemia",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "SPP1",
+  "disease": "alcoholic fatty liver disease",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "EPS8",
+  "disease": "Barrett esophagus",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "SLAIN1",
+  "disease": "pancreas disorder",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "HDAC6",
+  "disease": "ovarian endometrioid stromal and related neoplasms",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "S100B",
+  "disease": "sudden infant death syndrome",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TAC1",
+  "disease": "substance-related disorder",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "ASZ1",
+  "disease": "hepatitis B virus infection",
+  "flags": 2,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TFPI",
+  "disease": "atherosclerosis",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "LOXL1",
+  "disease": "pelvic organ prolapse",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "LDLR",
+  "disease": "diabetes mellitus",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CLCN2",
+  "disease": "hyperaldosteronism",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "GOLM1",
+  "disease": "liver and intrahepatic bile duct neoplasm",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "PAX6",
+  "disease": "Sotos syndrome",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CSPG4",
+  "disease": "melanoma",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "KHDRBS1",
+  "disease": "Zellweger spectrum disorders",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TP53",
+  "disease": "inborn mitochondrial metabolism disorder",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MTHFR",
+  "disease": "Zellweger spectrum disorders",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "FEZ1",
+  "disease": "schizophrenia",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "GRIN1",
+  "disease": "polymicrogyria",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CYP11A1",
+  "disease": "hypertensive disorder",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "GADD45B",
+  "disease": "hereditary disease",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "AHSG",
+  "disease": "bone disorder",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "IL4",
+  "disease": "lymphoma",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CSNK1E",
+  "disease": "colorectal neoplasm",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "PGBD2",
+  "disease": "polycystic ovary syndrome",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "NUDT21",
+  "disease": "hepatocellular carcinoma",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "GSS",
+  "disease": "inborn mitochondrial metabolism disorder",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TRAC",
+  "disease": "bone inflammation disease",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MME",
+  "disease": "melanoma",
+  "flags": 1,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "HNF4A",
+  "disease": "colorectal neoplasm",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "SERPINE1",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "ANPEP",
+  "disease": "ovarian endometrioid stromal and related neoplasms",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MIR675",
+  "disease": "hepatocellular carcinoma",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "BCL2",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CX3CR1",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": null,
+  "disease": "muscular dystrophy",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "GRN",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CSRP3",
+  "disease": "heart failure",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TBC1D29P",
+  "disease": "azoospermia, obstructive, with nephrolithiasis",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CRB1",
+  "disease": "cone-rod dystrophy",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MBL2",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "ESR1",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": null,
+  "disease": "hepatocellular carcinoma",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "NOB1",
+  "disease": "ovarian endometrioid stromal and related neoplasms",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CLEC12A",
+  "disease": "leukemia",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "SRSF3",
+  "disease": "alcohol dependence",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "LHX3",
+  "disease": "hypopituitarism",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "NGFR",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "EIF2AK2",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "NOP53",
+  "disease": "polycystic ovary syndrome",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "MAPK1",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "THBS2",
+  "disease": "carcinoma",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "TIPE2",
+  "disease": "systemic lupus erythematosus",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "KIF2A",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "REEP1",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CLN5",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "UTP14A",
+  "disease": null,
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "CRIM1",
+  "disease": "kidney papillary necrosis",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "IL10",
+  "disease": "middle cerebral artery infarction",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "PLAT",
+  "disease": "subarachnoid hemorrhage",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ },
+ {
+  "target": "IFNG",
+  "disease": "severe combined immunodeficiency",
+  "flags": 0,
+  "flagged": false,
+  "verdict": null,
+  "why": null
+ }
+]

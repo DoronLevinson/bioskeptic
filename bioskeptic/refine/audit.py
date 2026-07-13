@@ -2,10 +2,10 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
 from bioskeptic.refute.core import ClaimTriple
-from bioskeptic.refute.redteam import red_team
+from bioskeptic.refute.redteam import _TITLES, red_team
 from bioskeptic.resolver.disease import resolve_disease
 from bioskeptic.resolver.target import resolve_target
-from kg_audit.format import finding_to_string
+from bioskeptic.refine.format import finding_to_string
 
 
 @dataclass
@@ -18,6 +18,7 @@ class AuditResult:
     flagged: bool = False                          # did any refuting mechanism fire?
     flags: list = field(default_factory=list)      # list[str]: one reason+sources line per fired mechanism
     flag_mechanisms: list = field(default_factory=list)  # machine names of the mechanisms that fired
+    findings: list = field(default_factory=list)   # structured: [{mechanism, title, reason, sources}]
     details: str | None = None                     # the flags joined, or None if nothing fired
     n_flagged: int = 0
     n_clean: int = 0
@@ -43,10 +44,14 @@ def audit_pair(target: str, disease: str, direction: str | None = None) -> Audit
         return AuditResult(target, disease, target_name=tgt.symbol, disease_name=dis.name,
                            resolved=True, flagged=False, error=f"{type(e).__name__}: {e}")
     flags = [finding_to_string(f) for f in report.flagged]
+    findings = [{"mechanism": f.mechanism,
+                 "title": _TITLES.get(f.mechanism, f.mechanism.replace("_", " ").capitalize()),
+                 "reason": f.explanation, "sources": [s for s in (f.sources or []) if s]}
+                for f in report.flagged]
     return AuditResult(
         target=target, disease=disease, target_name=tgt.symbol, disease_name=dis.name, resolved=True,
         flagged=bool(flags), flags=flags, flag_mechanisms=[f.mechanism for f in report.flagged],
-        details=("\n".join(flags) or None),
+        findings=findings, details=("\n".join(flags) or None),
         n_flagged=len(report.flagged), n_clean=len(report.clean), n_na=len(report.not_applicable))
 
 

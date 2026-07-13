@@ -18,8 +18,8 @@
       <nav class="nav">
         <button class="nav-item active" data-page="home">Home</button>
         <button class="nav-item" data-page="about">About</button>
-        <button class="nav-item" data-page="api">API</button>
-        <button class="nav-item" data-page="performance">Performance</button>
+        <button class="nav-item" data-page="api">MCP &amp; Py Lib</button>
+        <button class="nav-item" data-page="datasets">Data Refinement</button>
         <button class="nav-item" data-page="qa">Q&amp;A</button>
       </nav>
     </aside>
@@ -112,8 +112,133 @@
 
       <!-- placeholder pages -->
       <section class="page placeholder" id="page-about" hidden><h2>About</h2><p>Coming soon.</p></section>
-      <section class="page placeholder" id="page-api" hidden><h2>API</h2><p>Coming soon.</p></section>
-      <section class="page placeholder" id="page-performance" hidden><h2>Performance</h2><p>Coming soon.</p></section>
+      <section class="page doc" id="page-api" hidden>
+        <div class="doc-body">
+          <h1>MCP &amp; Python Library</h1>
+          <p class="doc-lead">BioSkeptic's engine isn't locked inside the chat. The same grounded checks are
+            available two other ways — as an <strong>MCP server</strong>, so any AI agent can call them as tools,
+            and as a <strong>Python library</strong> for batch data refinement. Both are <strong>free and
+            local</strong>: they run on your machine with your own API key, and nothing is sent to a BioSkeptic
+            server.</p>
+
+          <h3>The MCP server — BioSkeptic as tools for any agent</h3>
+          <p><strong>MCP (Model Context Protocol)</strong> is the standard that lets an AI agent call external
+            tools. BioSkeptic's MCP server exposes its whole toolbox, so instead of <em>you</em> asking
+            BioSkeptic, <em>your</em> agent — Claude Desktop, Claude Code, or any MCP client — can reach for these
+            tools mid-reasoning and get back grounded, cited results.</p>
+          <p>The tools it provides:</p>
+          <ul>
+            <li><strong>Resolvers</strong> (<code>resolve_target</code>, <code>resolve_drug</code>,
+              <code>resolve_disease</code>) — turn a messy name, or a knowledge-graph id like <code>Gene::7157</code>,
+              into a grounded ID passport the other tools can use.</li>
+            <li><strong>build_report</strong> — the core. Runs <em>every</em> refuting mechanism on a
+              drug–target–disease claim and returns a structured report: the concerns that fired, the checks that
+              passed, each mechanism's precision, and cited links.</li>
+            <li><strong>Dig tools</strong> (<code>search_trials</code>, <code>search_pubmed</code>,
+              <code>fda_label</code>) — chase a concern down to primary evidence (clinical trials, papers, the FDA
+              label), keyed on the ids already resolved.</li>
+            <li><strong>drug_targets</strong> — a drug's direct mechanism-of-action target(s), for when a claim
+              names a drug but not a target.</li>
+          </ul>
+          <p><strong>To use it</strong>, add BioSkeptic to your Claude Desktop config (Settings → Developer → Edit
+            Config) and restart — then just ask it to red-team a claim:</p>
+          <pre><code>{
+  "mcpServers": {
+    "bioskeptic": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "mcp_server.server"],
+      "cwd": "/path/to/bioskeptic",
+      "env": { "ANTHROPIC_API_KEY": "sk-ant-..." }
+    }
+  }
+}</code></pre>
+
+          <h3>The library — <code>bioskeptic.refine</code></h3>
+          <p>For pipelines rather than chat. <code>bioskeptic.refine</code> runs the same refuting panel over the
+            <strong>target–disease relations in a dataset or knowledge graph</strong> and flags the weakly-grounded
+            ones — each with a cited reason — so you can clean a dataset, refine a KG, or train repurposing models
+            on relations that actually hold up.</p>
+          <p>Audit a single relation:</p>
+          <pre><code>from bioskeptic.refine import audit_pair
+
+r = audit_pair(target="TP53", disease="type 2 diabetes")
+r.flagged          # True
+print(r.details)   # reasons + source links
+r.findings         # structured: [{mechanism, title, reason, sources}, ...]</code></pre>
+          <p>…or a whole dataframe — it adds <code>flagged</code>, <code>flags</code>, <code>flag_mechanisms</code>,
+            and <code>findings</code> columns:</p>
+          <pre><code>from bioskeptic.refine import audit_dataframe
+out = audit_dataframe(df)      # df with 'target' and 'disease' columns
+out[out["flags"] >= 2]         # keep only corroborated flags</code></pre>
+          <p>The <strong>Data Refinement</strong> page shows a worked example on 100 relations sampled from DRKG.</p>
+
+          <h3>Free &amp; local</h3>
+          <p>Both run <strong>on your machine with your own key</strong>. Five of the eight mechanisms — and all
+            entity resolution — are <strong>free public-database lookups</strong> (Open Targets, GTEx, the Human
+            Protein Atlas, IMPC, and friends). The other three call an LLM to judge relevance, costing roughly a
+            few cents per audit on your key. There's nothing hosted to rate-limit or trust — you run it, you own it.</p>
+        </div>
+      </section>
+      <section class="page doc" id="page-datasets" hidden>
+        <div class="doc-body">
+          <h1>Data Refinement</h1>
+          <p class="doc-lead">BioSkeptic isn't only a chat assistant. The same grounded engine is available as an
+            <strong>API</strong> that runs its panel of refuting mechanisms over the <strong>edges of a dataset or
+            knowledge graph</strong> and <strong>flags the relations that don't hold up</strong> — each with a cited,
+            human-readable reason.</p>
+
+          <p>This matters because the datasets and knowledge graphs behind modern drug discovery are <strong>noisy</strong>.
+            A large share of their target–disease links come from <strong>text-mining papers that merely co-mention two
+            entities</strong> — a connection that can exist with no real biology behind it. Train a repurposing model on
+            those edges and you teach it to trust connections that aren't there.</p>
+
+          <h3>A worked example — auditing DRKG</h3>
+          <p>To show what this looks like, we took <strong>DRKG</strong> (the Drug Repurposing Knowledge Graph, a widely
+            used biomedical KG) and <strong>randomly sampled 100 target–disease relations</strong>. Each one runs through
+            the API, which resolves the gene and disease and then checks them against every refuting mechanism —
+            <em>is the target actually expressed in the affected tissue? does deleting it in mice do anything relevant?
+            is there a genetic signal, or only paper co-mention?</em></p>
+          <p>We flagged a relation whenever <strong>3 or more independent mechanisms fired</strong> — a deliberately strict
+            bar, so a flag means several unrelated lines of evidence all point the same way.</p>
+
+          <div class="doc-stats">
+            <div class="doc-stat"><span class="doc-stat-n">100</span><span class="doc-stat-l">relations sampled</span></div>
+            <div class="doc-stat"><span class="doc-stat-n">16</span><span class="doc-stat-l">flagged (≥3 mechanisms)</span></div>
+            <div class="doc-stat ok"><span class="doc-stat-n">~81%</span><span class="doc-stat-l">precision (13 of 16 genuine)</span></div>
+          </div>
+
+          <h3>The results</h3>
+          <p><strong>16 of the 100 relations were flagged.</strong> On manual review, <strong>13 were genuine</strong> —
+            targets with no real footprint in the disease, mis-categorised genes, or edges resting only on literature
+            co-mention — a <strong>precision of ~81%</strong>, at the strictest confidence tier.</p>
+          <p>A concrete catch: DRKG links <strong>EPO (erythropoietin) to inherited thrombocytopenia</strong> — but EPO
+            drives <em>red blood cell</em> production, not platelets (that's thrombopoietin). Sure enough, it isn't
+            expressed in blood, its mouse knockout causes anemia rather than a platelet defect, and there's no genetic
+            support — <strong>and every one of those reasons comes with a database link</strong>. The edge is almost
+            certainly a lineage mix-up.</p>
+          <p>The few false positives shared a <strong>single, predictable signature</strong>: secreted growth factors and
+            structural proteins (like FGF2) that are genuinely disease-relevant but trip the single-cell check because
+            they act <em>between</em> cells rather than <em>inside</em> the disease-driving one. Because they cluster,
+            they're <strong>easy to filter</strong> — and precision climbs further if you require a mouse-knockout or
+            genetic mechanism rather than expression alone.</p>
+
+          <h3>Why this matters at scale</h3>
+          <p>One hundred edges is a demo; the value is in the <strong>millions</strong>. Run at scale, the API can:</p>
+          <ul>
+            <li><strong>Refine training datasets</strong> — strip the weakly-grounded edges before they teach a model bad priors.</li>
+            <li><strong>Clean knowledge graphs</strong> — surface candidate spurious links for curators, each with a cited rationale instead of a bare score.</li>
+            <li><strong>Sharpen drug-discovery &amp; repurposing algorithms</strong> — models trained and evaluated on grounded, audited relations make better, more trustworthy predictions.</li>
+          </ul>
+          <p>Every flag is <strong>backed by a source you can open and check</strong> — so this isn't a black-box filter,
+            it's an <strong>auditable second opinion</strong> on every connection in your data.</p>
+
+          <h3>The full sample — 100 audited relations</h3>
+          <p>Every relation we sampled is below. The <strong>Flagged</strong> column marks a ⚑ only where <strong>3 or more
+            mechanisms fired</strong>; for those, our manual <strong>true / false</strong> call and the reason. This is the
+            raw evidence behind the ~81% number above.</p>
+          <div class="data-table-wrap" id="drTableWrap"></div>
+        </div>
+      </section>
       <section class="page placeholder" id="page-qa" hidden><h2>Q&amp;A</h2><p>Coming soon.</p></section>
     </main>
   </div>
