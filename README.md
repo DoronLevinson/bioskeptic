@@ -44,8 +44,12 @@ reliability, and the agent weighs them like a red-team lawyer — raising concer
 
 ## Use it
 
-Both the MCP server and the library are **free and local** — they run on your machine with your **own**
-`ANTHROPIC_API_KEY` (a few checks call an LLM; the rest are free public-database lookups).
+**Try it live:** [bioskeptic.onrender.com](https://bioskeptic.onrender.com) — the chat app, running now, nothing to
+install. Give it a claim like *"evolocumab inhibits PCSK9 to treat high LDL"* and it'll pin down the entities and
+hand back a cited red-team report.
+
+For your own agent or pipeline, both the MCP server and the library are **free and local** — they run on your
+machine with your **own** `ANTHROPIC_API_KEY` (a few checks call an LLM; the rest are free public-database lookups).
 
 ```bash
 git clone https://github.com/DoronLevinson/bioskeptic && cd bioskeptic

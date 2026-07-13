@@ -360,7 +360,7 @@ form.addEventListener("submit", async (e) => {
 
   addUser(text);
   messages.push({ role: "user", content: text });
-  const bubble = newBotBubble();
+  let bubble = newBotBubble();
   let sawReport = false;   // did a report arrive this turn? (adds an "open report" link to the reply)
 
   try {
@@ -385,9 +385,12 @@ form.addEventListener("submit", async (e) => {
         const event = JSON.parse(line.slice(5).trim());
         if (event.type === "status") {
           showStatus(bubble, event.tool);
+        } else if (event.type === "note") {        // mid-turn line ("All set — …, I'll build it now.")
+          bubble.className = "msg bot";
+          bubble.innerHTML = renderMarkdown(event.text);
+          bubble = newBotBubble();                 // fresh pulsing bubble for the report build that follows
         } else if (event.type === "report") {
-          renderReport(event.data);
-          openReport();                        // open by default the moment the report is created
+          renderReport(event.data);            // shows the rail; the user opens it via the ⚑ link / toggle
           sawReport = true;
           hideDemos();                         // a report exists now — retire the example prompts
         } else if (event.type === "concern") {

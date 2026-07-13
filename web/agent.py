@@ -16,11 +16,11 @@ SYSTEM = """You are BioSkeptic, a sharp, friendly red-teamer for drug-discovery 
 knowledgeable colleague thinking out loud with the user — warm, plain-spoken, concise. Never sound like a
 form or a report generator.
 
-Guide the user through it. At every stage — pinning down entities, asking a question, running the report,
-digging, weighing a flag — take a light moment to explain WHAT you're doing and WHY, reassure them when
-you pause or ask for something (their question is on track, not stalled), and teach a little of the
-underlying biology or method as you go, so they follow your reasoning and feel guided rather than
-processed. Keep it to a sentence or two of context where it helps — never a lecture.
+Guide the user through it — but don't clutter. When you PAUSE or ASK (an ambiguous entity, a target you
+can't infer), take a light moment to explain what you need and why, reassure them it's on track, and teach
+a little as you go — a sentence or two, never a lecture. When you're BUILDING the report, though, do NOT
+narrate step by step: give the one short "I'll build it now" line, then let the tools run silently — the
+status pulses already show the work — and save all your explanation for the single final write-up.
 
 Crucial: whenever your reply is going to ASK for something or add a SETUP STEP instead of directly
 answering (e.g. you need to pin a target before red-teaming), do NOT open with the raw analysis or a
@@ -39,8 +39,10 @@ grounding. Break it up — a short line or blank line between thoughts, or a tin
 dense wall of text; a little **bold** on the key bits is good. Skip headers and the full source/
 mechanism enumeration unless the user asks.
 
-The user gives a claim like "drug X hits target Y to treat disease Z" (any part may be missing). You work
-in two stages, and you STOP between them.
+The user gives a claim like "drug X hits target Y to treat disease Z" (any part may be missing). You resolve
+the entities and then build the report — normally in ONE go, without waiting for permission. You only pause
+and wait when you genuinely need the user to clarify something (a term that's ambiguous, or a target /
+direction you can't infer).
 
 STAGE 1 — pin down the entities. Go in order: drug, then target, then disease. The specific "why" to
 convey here (per the guide-the-user principle above): the report is entity-specific — every check runs
@@ -76,12 +78,21 @@ the red-team comes right after. For each one the user named:
     (novel drug), fall back to your knowledge but SAY so, and still let the user pick.
   • TARGET MISSING and no drug either: you can't ground a target from data — briefly ask the user to name
     a target or a drug so you have something concrete to red-team.
-When all three are resolved, STOP with a single friendly line that NAMES what you locked in (so the user
-can correct you if a pick is off), e.g. "All set — evolocumab, PCSK9, and high LDL cholesterol. Say the
-word and I'll build the red-team report." Do NOT give a verdict here — pinning down the entities is
-Stage 1's whole job, whether or not you had to ask anything.
+Once all three are pinned down, DON'T wait for permission and DON'T end your turn just to show what you
+resolved. In ONE message: write a short line naming what you locked in and saying you're building it now
+(e.g. "All set — evolocumab, PCSK9, and high LDL cholesterol. I'll build the red-team report now.") AND
+call build_report in that SAME message — naming your picks is NOT a stopping point, it's the lead-in to the
+build. Picking the most on-point term (the common umbrella disease over a rare subtype, the main molecular
+target, etc.) counts as DECIDED — do not pause to double-check a choice you already made. The ONLY reason
+to end your turn here without building is if you must ASK the user a real question they have to answer (a
+genuinely ambiguous entity with no clear best pick, or a target/direction you can't infer) — and then phrase
+it as an actual question. Never give a verdict in the build line.
 
-STAGE 2 — red-team the claim. You are a RED-TEAM LAWYER, never a judge. ONLY after the user says go:
+STAGE 2 — red-team the claim (same turn, right after the "I'll build it now" line — or after the user
+answers a question you had to ask). You are a RED-TEAM LAWYER, never a judge. Do the tool work SILENTLY —
+call build_report, then the dig tools, then add_concern, with NO prose in between (the status pulses show
+it) — and save everything you write for ONE final message once the panel is curated. All the guidance
+below describes that tool work and that final message; don't narrate it as you go:
   • Call build_report ONCE with the resolved target symbol + Ensembl id, disease name + EFO id, drug name,
     and direction ('inhibit' = lowers/blocks/antagonist/degrader, 'activate' = raises/agonist). If you know
     the drug's mechanism, supply the direction; for a novel drug or bare idea, ASK the user first.
@@ -162,7 +173,9 @@ def _evidence_event(tool_name):
 #   {"type": "report", "data": <report dict>} -- the full red-team report, for the UI panel
 #   {"type": "reply",  "text": <final text>}  -- the assistant's final answer for this turn
 #   {"type": "error",  "message": <str>}      -- if anything fails
-def stream_events(messages: list[dict]):
+# Run ONE model turn: yields UI events live, then a final {"type": "_end", ...} sentinel (stripped by
+# stream_events) carrying the turn's reply text and whether a report was built this turn.
+def _run_turn(messages: list[dict]):
     emitted: list = []   # report / evidence / concern events, drained to the UI in call order
     turn_tools = (
         [beta_tool(_as_str_tool(fn)) for fn in tools.RESOLVERS]
@@ -173,28 +186,64 @@ def stream_events(messages: list[dict]):
         + [beta_tool(_emitting_tool(tools.add_concern, emitted,
                                     lambda r: {"type": "concern", "data": r}))]   # curates the panel
         + [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}])  # general web
+    runner = _client.beta.messages.tool_runner(
+        model=MODEL, max_tokens=MAX_TOKENS, system=SYSTEM, tools=turn_tools, messages=messages,
+        output_config={"effort": "medium"},  # snappier for chat; raise for the final demo
+    )
+    reply, built = "", False
+    for message in runner:
+        text = "".join(b.text for b in message.content if b.type == "text")
+        tools_here = [b.name for b in message.content if b.type == "tool_use"]
+        if message.stop_reason == "end_turn":
+            reply = text
+        elif text.strip() and "build_report" in tools_here:
+            # Show ONLY the "All set — X, Y, Z. Building the report now." line (the text in the round that
+            # kicks off the report); the model's other between-tool narration is dropped (the status pulses
+            # show progress) and its real analysis lands in the final reply.
+            yield {"type": "note", "text": text}
+        for name in tools_here:
+            yield {"type": "status", "tool": name}
+        while emitted:
+            ev = emitted.pop(0)
+            if ev.get("type") == "report":
+                built = True
+            yield ev
+    while emitted:
+        ev = emitted.pop(0)
+        if ev.get("type") == "report":
+            built = True
+        yield ev
+    yield {"type": "_end", "reply": reply, "built": built}
+
+
+# Run a chat turn as a stream of plain-dict UI events (the web layer turns these into SSE):
+#   {"type": "status",  "tool": <name>}   -- each time the model calls a tool
+#   {"type": "note",    "text": <str>}    -- a short "building it now" line before the report
+#   {"type": "report",  "data": <dict>}   -- the red-team report, for the UI panel
+#   {"type": "concern"/"evidence", ...}   -- panel updates as it curates / digs
+#   {"type": "reply",   "text": <str>}    -- the final answer for this turn
+#   {"type": "error",   "message": <str>} -- if anything fails
+# Safety net: if the model resolves the entities but STOPS to "confirm" instead of building (and it isn't
+# genuinely asking a question), auto-continue once — show its line as a note and build the report — so the
+# user never has to say "go".
+def stream_events(messages: list[dict]):
+    msgs = list(messages)
     try:
-        runner = _client.beta.messages.tool_runner(
-            model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=SYSTEM,
-            tools=turn_tools,
-            messages=messages,
-            output_config={"effort": "medium"},  # snappier for chat; raise for the final demo
-        )
-        reply = ""
-        # The runner yields one assistant message per round. A round that calls tools has tool_use blocks
-        # (the runner executes them, THEN loops); the final round ends the turn with the answer text.
-        for message in runner:
-            for block in message.content:
-                if block.type == "tool_use":
-                    yield {"type": "status", "tool": block.name}
-            while emitted:                        # tools ran in the prior round -> push their UI events
-                yield emitted.pop(0)
-            if message.stop_reason == "end_turn":
-                reply = "".join(b.text for b in message.content if b.type == "text")
-        while emitted:                            # flush any events from the final round
-            yield emitted.pop(0)
-        yield {"type": "reply", "text": reply or "(no reply)"}
+        for attempt in (0, 1):
+            end = None
+            for ev in _run_turn(msgs):
+                if ev.get("type") == "_end":
+                    end = ev
+                else:
+                    yield ev
+            reply = (end or {}).get("reply", "")
+            # done if it built the report, genuinely asked (a question), gave nothing, or we already retried
+            if (end or {}).get("built") or "?" in reply or not reply.strip() or attempt == 1:
+                yield {"type": "reply", "text": reply or "(no reply)"}
+                return
+            # it only confirmed its picks -> show that line, then auto-build in a second turn
+            yield {"type": "note", "text": reply}
+            msgs = msgs + [{"role": "assistant", "content": reply},
+                           {"role": "user", "content": "Go ahead and build the report now."}]
     except Exception as e:
         yield {"type": "error", "message": f"{type(e).__name__}: {e}"}

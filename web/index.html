@@ -310,7 +310,65 @@ out[out["flags"] >= 2]         # keep only corroborated flags</code></pre>
           <div class="data-table-wrap" id="drTableWrap"></div>
         </div>
       </section>
-      <section class="page placeholder" id="page-qa" hidden><h2>Q&amp;A</h2><p>Coming soon.</p></section>
+      <section class="page doc" id="page-qa" hidden>
+        <div class="doc-body">
+          <h1>Q&amp;A</h1>
+          <div class="faq">
+            <div class="faq-item">
+              <p class="faq-q">Who is it for?</p>
+              <p class="faq-a">Anyone weighing a drug–target–disease idea and wanting to check it against the evidence
+                — bench and translational scientists sanity-checking a hypothesis, teams triaging targets from a screen
+                or an AI pipeline, and data scientists cleaning the knowledge graphs and datasets those pipelines learn
+                from. It's a second opinion you can audit, not a replacement for expert judgement.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">Does BioSkeptic tell me whether a drug idea is good or bad?</p>
+              <p class="faq-a">No — it never gives a verdict. It raises specific, sourced concerns and leaves the
+                judgement to you. Every flag is a suggestive signal with known blind spots, not a yes/no.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">Isn't this just asking Claude?</p>
+              <p class="faq-a">It uses an LLM, but the difference is grounding. A raw model answers from memory and can
+                sound confident with no evidence behind it; BioSkeptic ties each concern to a database you can open and
+                check. It helps most on obscure targets, where a model has little to read and tends to fill the gap with
+                plausible guesses.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">What does it actually check?</p>
+              <p class="faq-a">Whether a drug–target–disease link holds up biologically: is the target expressed where
+                the disease acts, do human genetics support the direction, does the mouse knockout do anything relevant,
+                is the link only a paper co-mention — 8 checks so far, each grounded in a real database.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">Does it predict whether a drug will succeed?</p>
+              <p class="faq-a">No. It checks one early, cheap-to-verify piece — whether the target–disease hypothesis is
+                grounded. Drugs fail for many reasons (safety, dosing, commercial) it doesn't touch.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">Can it be wrong?</p>
+              <p class="faq-a">Yes, and it says so. Each mechanism documents its blind spots — for example, the
+                expression check misfires on secreted proteins, and mouse knockouts don't always match human biology.
+                That's exactly why it presents concerns to weigh, not conclusions.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">Where does the data come from?</p>
+              <p class="faq-a">~21 public biomedical databases — Open Targets, GTEx, the Human Protein Atlas, ChEMBL,
+                ClinGen, ClinicalTrials.gov, PubMed, the FDA label, and more. Every concern links back to its source.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">Is my data or key sent anywhere?</p>
+              <p class="faq-a">For the MCP server and the Python library, no — they run locally on your own key. The
+                hosted chat demo runs on our key and is rate-limited.</p>
+            </div>
+            <div class="faq-item">
+              <p class="faq-q">What's the "data refinement" part?</p>
+              <p class="faq-a">The same checks can run over a whole knowledge graph or dataset to flag weakly-grounded
+                target–disease edges — useful for cleaning training data before you build a prediction model on it,
+                whether that's drug repurposing, target or indication selection, or development-success prediction.</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
   <script src="/static/app.js"></script>
