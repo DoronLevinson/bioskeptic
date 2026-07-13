@@ -1,5 +1,8 @@
 from dataclasses import asdict
 
+from bioskeptic.data import clinicaltrials as _ct
+from bioskeptic.data import openfda as _fda
+from bioskeptic.data import pubmed as _pubmed
 from bioskeptic.refute.core import ClaimTriple
 from bioskeptic.refute.redteam import assess, red_team, report_to_dict
 from bioskeptic.resolver import disease as _disease
@@ -66,6 +69,40 @@ def build_report(target_symbol: str, target_ensembl: str, disease_name: str, dis
     return report_to_dict(report, assess(report))
 
 
-# The resolver tool set (used to pin down entities) and the full set shared by MCP + the web agent loop.
+def search_pubmed(term: str, k: int = 6) -> dict:
+    """Search PubMed and return the total match count plus the top k papers (PMID, title, year, journal,
+    first author, link). Build `term` from the ids you already resolved, for precision: a gene symbol,
+    drug name, or disease term, optionally tagged [tiab] to restrict to title/abstract and combined with
+    AND/OR — e.g. 'SLC12A1[tiab] AND ototoxicity' or 'evolocumab[tiab] AND myocardial'. Use it to check
+    how much is known about a concern and to cite specific papers; the count alone is a signal (thousands
+    = well-studied, a handful = obscure)."""
+    count, papers = _pubmed.search(term, k)
+    return {"query": term, "total_count": count, "papers": [asdict(p) for p in papers]}
+
+
+def search_trials(intervention: str = "", condition: str = "", k: int = 10) -> dict:
+    """Search ClinicalTrials.gov for registered trials of a drug (intervention) in a disease (condition);
+    either may be blank for a drug-only or disease-only search. Returns the total count plus the top k
+    trials (NCT id, title, phase, status, why it stopped for terminated/withdrawn trials, link). Pass the
+    resolved drug and disease names. This is the key check for 'has this been tried, and did it fail?' — a
+    terminated late-phase trial or a why-stopped naming futility/toxicity is a strong red flag; and the
+    absence of any trial is itself informative."""
+    count, trials = _ct.search(intervention, condition, k)
+    return {"intervention": intervention, "condition": condition,
+            "total_count": count, "trials": [asdict(t) for t in trials]}
+
+
+def fda_label(drug: str) -> dict | None:
+    """Fetch the FDA-approved drug label for a drug (brand or generic name), returning its safety-relevant
+    sections (boxed warning, warnings, contraindications, adverse reactions, indications) plus a DailyMed
+    link. Returns null if the drug has no FDA label (novel or non-US drugs). Use it to ground on-target-
+    toxicity and safety concerns in the official label rather than from memory."""
+    lab = _fda.label(drug)
+    return asdict(lab) if lab else None
+
+
+# The resolver tool set (pin down entities), the dig tools (id-keyed retrieval for chasing concerns after
+# the report), and the full set shared by MCP + the web agent loop.
 RESOLVERS = [resolve_target, suggest_targets, resolve_drug, suggest_drugs, resolve_disease, suggest_diseases]
-ALL = RESOLVERS + [build_report]
+DIG = [search_trials, search_pubmed, fda_label]
+ALL = RESOLVERS + [build_report] + DIG

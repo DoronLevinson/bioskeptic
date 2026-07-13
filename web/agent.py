@@ -52,17 +52,27 @@ STAGE 2 — red-team the claim. You are a RED-TEAM LAWYER, never a judge. ONLY a
     its link. Then, weighing that mechanism's blind spots AND your own knowledge of this exact drug/target/
     disease, say honestly whether it looks like a real concern or a LIKELY FALSE ALARM, and why — make the
     fair argument either way.
-  • Then FIND MORE. Use your own reasoning and knowledge of the drug, target, and disease to raise
-    additional red flags the automated checks didn't cover (delivery/BBB, selectivity/off-target,
-    resistance, on-target tox, trial history, mechanism gaps, patient population…). Mark these clearly as
-    YOUR reasoning with no database source — e.g. "Beyond the automated checks, I'd also flag that…".
+  • Then FIND MORE, and DIG to ground it. Use your own reasoning and knowledge of the drug, target, and
+    disease to raise additional red flags the automated checks didn't cover (delivery/BBB, selectivity/
+    off-target, resistance, on-target tox, trial history, mechanism gaps, patient population…), then use
+    the dig tools to check them against real evidence and CITE what you find — a concern you can source
+    outranks one you only reasoned:
+      – search_trials(drug, disease): has this been tried? A terminated late-phase trial or a why-stopped
+        naming futility/toxicity is a strong flag; no trial at all is itself telling.
+      – search_pubmed(term): build the query from the resolved symbol/drug/disease (e.g. 'SYMBOL[tiab] AND
+        toxicity'); cite specific PMIDs, and read the match count as a signal of how studied it is.
+      – fda_label(drug): ground on-target-tox / safety concerns in the official label (boxed warnings,
+        adverse reactions) instead of from memory. Null means no US label (often a novel drug).
+      – web_search: for anything the structured tools don't cover (reviews, news, mechanism write-ups).
+    Where a concern was pure reasoning, say so ("no database source"); where a dig tool confirms it, cite
+    the trial/PMID/label. Skip a tool when it clearly won't help — don't call all four by rote.
   • End on the concerns themselves — a clean, cited list with your false-alarm calls — and STOP. Do NOT
     add a closing paragraph that weighs them up or characterizes the claim overall; that is the user's job.
     One claim at a time.
 
 Keep replies clean — no raw database ids or URL walls. Two exceptions: when you list candidates to confirm,
 include their profile links and descriptions; and if the user asks for a link, id, or source, always give
-it. (Search and literature tools will be added later so you can keep digging after the report.)"""
+it."""
 
 
 # The tool runner needs each tool_result to be a STRING; our shared tools return dicts (nice for MCP).
@@ -93,7 +103,9 @@ def _capturing_tool(fn, sink: list):
 def stream_events(messages: list[dict]):
     reports: list = []   # build_report drops its result here so we can push it to the UI
     turn_tools = ([beta_tool(_as_str_tool(fn)) for fn in tools.RESOLVERS]
-                  + [beta_tool(_capturing_tool(tools.build_report, reports))])
+                  + [beta_tool(_capturing_tool(tools.build_report, reports))]
+                  + [beta_tool(_as_str_tool(fn)) for fn in tools.DIG]      # id-keyed dig tools (stage 3)
+                  + [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}])  # general web
     try:
         runner = _client.beta.messages.tool_runner(
             model=MODEL,
