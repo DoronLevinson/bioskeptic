@@ -15,6 +15,16 @@ WEB = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
 
 
+# Make browsers revalidate the JS/CSS on every load (cheap 304s via the file's ETag) so a new deploy
+# shows up without a hard refresh — otherwise the cached app.js/style.css hide the update.
+@app.middleware("http")
+async def revalidate_static(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 class ChatIn(BaseModel):
     messages: list[dict]  # full history each turn (the server keeps no state)
 
