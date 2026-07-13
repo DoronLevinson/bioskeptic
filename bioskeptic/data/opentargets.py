@@ -24,7 +24,7 @@ _GLOSS = {("LoF", "protect"): "loss-of-function is protective",
 # The therapeutic direction human genetics imply for a (target, disease) pair — one cited datapoint.
 def genetic_direction(target: Target, disease: Disease) -> Datapoint | None:
     ensembl = target.ensembl if target else None
-    efo = disease.efo if disease else None
+    efo = disease.genetic_id if disease else None   # the trait id where genetics lives, else the disease id
     if not (ensembl and efo):
         return None                     # missing an id we need -> not available
     query = """query E($efo:String!,$ens:[String!]!,$ds:[String!]!){
@@ -88,7 +88,7 @@ def association_evidence(target: Target, disease: Disease) -> Datapoint | None:
 # neighbouring gene consistently ranked higher (target = innocent passenger)? — one datapoint.
 def causal_gene_ranking(target: Target, disease: Disease) -> Datapoint | None:
     ens = target.ensembl if target else None
-    efo = disease.efo if disease else None
+    efo = disease.genetic_id if disease else None   # genetics is indexed on the trait id
     if not (ens and efo):
         return None
     query = """query E($efo:String!,$ens:[String!]!){ disease(efoId:$efo){

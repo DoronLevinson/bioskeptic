@@ -6,6 +6,7 @@ from bioskeptic.resolver import disease as _disease
 from bioskeptic.resolver import drug as _drug
 from bioskeptic.resolver import target as _target
 from bioskeptic.resolver.disease import Disease as _Disease
+from bioskeptic.resolver.disease import genetic_trait as _genetic_trait
 from bioskeptic.resolver.drug import Drug as _Drug
 from bioskeptic.resolver.target import Target as _Target
 
@@ -56,7 +57,8 @@ def build_report(target_symbol: str, target_ensembl: str, disease_name: str, dis
     'inhibit' (lowers / blocks / antagonist / degrader) or 'activate' (raises / agonist)."""
     claim = ClaimTriple(
         target=_Target(symbol=target_symbol or None, ensembl=target_ensembl or None),
-        disease=_Disease(name=disease_name or None, efo=disease_efo or None),
+        disease=_Disease(name=disease_name or None, efo=disease_efo or None,
+                         genetic_efo=_genetic_trait(f"{disease_name} {disease_efo}")),
         drug=(_Drug(name=drug_name or None, chembl_id=drug_chembl or None) if drug_name else None),
         direction=(direction or None),
     )

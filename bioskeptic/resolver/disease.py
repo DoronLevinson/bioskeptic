@@ -18,10 +18,18 @@ class Disease:
     synonyms: list[str] = field(default_factory=list)          # alias names, for literature/trials search
     therapeutic_areas: list[str] = field(default_factory=list) # broad classes ("cancer", "cardiovascular")
     url: str | None = None            # Open Targets disease page, for a human to verify
+    genetic_efo: str | None = None    # QUANTITATIVE-TRAIT id where genetics is indexed (e.g. "LDL cholesterol
+                                      # measurement" for hypercholesterolemia) — genetic mechanisms use this
 
     @property
     def resolved(self) -> bool:
         return self.efo is not None
+
+    # The id the GENETIC mechanisms (direction, colocalization) should query: the trait id if we have one,
+    # else the clinical disease id. Everything else keeps using the clinical `efo`.
+    @property
+    def genetic_id(self) -> str | None:
+        return self.genetic_efo or self.efo
 
 
 @dataclass
@@ -32,14 +40,40 @@ class DiseaseHit:
     url: str | None
 
 
+# Gene-burden / GWAS genetics is indexed on QUANTITATIVE-TRAIT ids, not clinical diseases (and the disease
+# resolver deliberately sinks those trait ids). For the common genetics-rich traits, bridge a disease to
+# its measurement-trait id so the genetic mechanisms look where the evidence actually lives. Keyed on words
+# in the disease name / the user's query; HDL / triglyceride / total-cholesterol checked before general
+# cholesterol so they win.
+_GENETIC_TRAIT = [
+    (("hdl",), "EFO_0004612"),                                    # HDL cholesterol measurement
+    (("triglycer",), "EFO_0004530"),                              # triglyceride measurement
+    (("total cholesterol",), "EFO_0004574"),                      # total cholesterol measurement
+    (("ldl", "hypercholesterol", "cholesterol"), "EFO_0004611"),  # LDL cholesterol measurement
+    (("diabet", "blood sugar", "glucose", "hba1c", "glyc"), "EFO_0004541"),   # HbA1c measurement
+    (("gout", "urate", "uric acid", "uricemia"), "EFO_0004531"),  # urate measurement
+    (("hypertens", "blood pressure"), "EFO_0006335"),             # systolic blood pressure
+    (("obesity", "body mass index", "bmi"), "EFO_0004340"),       # body mass index
+]
+
+
+# The measurement-trait id where a disease's genetics is indexed, or None if it isn't a bridged trait.
+def genetic_trait(text: str) -> str | None:
+    t = (text or "").lower()
+    for keys, efo in _GENETIC_TRAIT:
+        if any(k in t for k in keys):
+            return efo
+    return None
+
+
 # Resolve a disease in any shape (name, EFO/MONDO id, or DRKG 'Disease::MESH:…') to a full ID passport.
 def resolve_disease(query: str) -> Disease:
     efo, mesh = _resolve_identity(_strip_prefix(query))
     if efo is None:
-        return Disease(mesh=mesh)             # DRKG path may keep a MeSH id even if efo lookup failed
+        return Disease(mesh=mesh, genetic_efo=genetic_trait(query))
     core = _ot_disease(efo)
     if core is None:
-        return Disease(efo=efo, mesh=mesh, url=DISEASE_PAGE.format(efo))
+        return Disease(efo=efo, mesh=mesh, url=DISEASE_PAGE.format(efo), genetic_efo=genetic_trait(query))
     return Disease(
         name=core["name"],
         efo=efo,
@@ -49,6 +83,7 @@ def resolve_disease(query: str) -> Disease:
         synonyms=core["synonyms"],
         therapeutic_areas=core["therapeutic_areas"],
         url=DISEASE_PAGE.format(efo),
+        genetic_efo=genetic_trait(f"{query} {core['name']}"),
     )
 
 
