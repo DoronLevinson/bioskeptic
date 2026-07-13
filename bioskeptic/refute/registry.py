@@ -15,6 +15,9 @@ class Mechanism:
     evaluation: str           # how it did on the benchmark, in plain terms
     explanation_advanced: str = ""   # same, with the real sources / fields / method
     reliability_advanced: str = ""   # same, with the real thresholds / failure classes
+    precision: float | None = None   # benchmark precision (share of fires that are right); None = too
+                                     # rare / disease-independent to grade — weigh by `reliability` instead
+    recall: float | None = None      # benchmark recall (share of wrong claims it catches), where measured
 
     @property
     def name(self) -> str:
@@ -68,6 +71,7 @@ MECHANISMS = [
         reliability_advanced="Known FP class: paralogous subunits of one complex (e.g. GUCY1A1/GUCY1B1, "
             "soluble guanylate cyclase) — one subunit out-L2Gs the other but they are the same target. "
             "Weak loci (top competitor L2G < 0.5) are gated out. No coverage for non-GWAS (Mendelian) links.",
+        precision=0.50,
     ),
     Mechanism(
         m03_cis_mr,
@@ -105,6 +109,7 @@ MECHANISMS = [
         reliability_advanced="The 'clinical' datatype derives from ChEMBL known drugs, so on approved-drug "
             "sets its silence is partly circular — validate precision on drug-independent pairs. Abstains "
             "when there is no association at all (that is a separate 'no association' concern).",
+        precision=1.0,
     ),
     Mechanism(
         m06_haploinsufficiency,
@@ -144,6 +149,7 @@ MECHANISMS = [
             "SLC12A1/NKCC2 in kidney medulla to treat cardiac/hepatic edema); (2) cell-type-diluted targets "
             "(SLC6A4/SERT, OPRK1) read <1 TPM in bulk; (3) inducible enzymes (PTGS2/COX-2). The single-cell "
             "rescue only tames class 2. Bulk-only precision ceiling ~0.67.",
+        precision=0.75, recall=0.41,
     ),
     Mechanism(
         m10_single_cell,
@@ -163,6 +169,7 @@ MECHANISMS = [
         reliability_advanced="Same expression confound as #7; HPA's single-cell atlas has limited "
             "resolution for some driver cells (e.g. raphe serotonergic neurons for depression). "
             "Precision ~0.66, recall ~0.76 — the high-recall dial of the expression axis.",
+        precision=0.66, recall=0.76,
     ),
     Mechanism(
         m13_mouse_ko,
@@ -182,6 +189,7 @@ MECHANISMS = [
         reliability_advanced="~90% of FPs are irreducible mouse!=human (viable KO whose adult phenotype "
             "doesn't match the human disease). OT aggregates phenotypes across alleles, so a lethality "
             "label can co-occur with rich adult data. Paralog compensation and drug!=full-KO also cause FPs.",
+        precision=0.70, recall=0.66,
     ),
 ]
 

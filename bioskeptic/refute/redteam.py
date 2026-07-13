@@ -1,13 +1,12 @@
-import json
 from dataclasses import dataclass, field
 
-from bioskeptic.data.llm import ask_claude
 from bioskeptic.refute.core import ClaimTriple, Finding
 from bioskeptic.refute.registry import BY_NAME, MECHANISMS
 
-# The red-team runs in two clearly separated steps:
-#   1. red_team(claim)  — deterministic: run every mechanism, collect what each returned into a Report.
-#   2. assess(report)   — an LLM pass: hand the Report to Claude for an overall read of the flags.
+# red_team(claim) is deterministic: run every mechanism, collect what each returned into a Report.
+# The weighing of those flags is no longer a separate assess() LLM pass — the chat agent reasons over
+# the report itself (it gets each mechanism's reliability, blind spots, and precision) and curates the
+# concerns it wants to surface via the add_concern tool. So this module just builds the evidence.
 
 
 @dataclass
@@ -40,84 +39,6 @@ def red_team(claim: ClaimTriple) -> Report:
     return report
 
 
-@dataclass
-class Assessment:
-    """Claude's overall read of a Report (the flags remain suggestive — this is a weighing, not a verdict).
-
-    overall         — a short narrative the agent can speak: does the claim look refuted, shaky, or fine?
-    likely_misfires — fired flags Claude judges are probably false alarms, each with a one-line why
-                      (using the mechanism's known blind spots, e.g. #7 firing on a drug that acts on
-                      another organ).
-    worth_digging   — fired flags Claude thinks may well be real and deserve a closer look.
-    """
-    overall: str
-    likely_misfires: list = field(default_factory=list)
-    worth_digging: list = field(default_factory=list)
-
-
-# A plain-language description of the claim, for the assessment prompt.
-def _claim_str(claim: ClaimTriple) -> str:
-    parts = []
-    if claim.drug and claim.drug.name:
-        parts.append(claim.drug.name)
-    sym = claim.target.symbol if claim.target else None
-    if sym:
-        parts.append(f"{claim.direction or 'targeting'} {sym}" if claim.direction else f"targeting {sym}")
-    if claim.disease and claim.disease.name:
-        parts.append(f"to treat {claim.disease.name}")
-    return " ".join(parts) or "the claim"
-
-
-# STEP 2 — hand the Report to Claude for an overall assessment: which fired flags are probably mis-fires
-# (each Finding's explanation already states its mechanism's blind spot), which are worth digging into,
-# and whether the claim looks refuted overall. The flags stay suggestive; this is a weighing, not a verdict.
-def assess(report: Report) -> Assessment:
-    if not report.flagged:
-        return Assessment(overall="No grounded concerns fired — the applicable mechanisms found nothing "
-                                  "to refute in this claim.")
-    # each fired flag gets its finding (the datapoint) + the mechanism's explanation, reliability, and
-    # benchmark evaluation from the registry, so Claude can weigh it against how the check really behaves.
-    blocks = []
-    for f in report.flagged:
-        info = BY_NAME.get(f.mechanism)
-        if not info:
-            blocks.append(f"- MECHANISM [{f.mechanism}]\n    what it found:   {f.explanation}")
-            continue
-        blocks.append(
-            f"- MECHANISM [{f.mechanism}]\n"
-            f"    what it checks:  {info.explanation}\n"
-            f"      (advanced):    {info.explanation_advanced}\n"
-            f"    what it found:   {f.explanation}\n"
-            f"    reliability:     {info.reliability}\n"
-            f"      (advanced):    {info.reliability_advanced}\n"
-            f"    benchmark:       {info.evaluation}")
-    flags = "\n".join(blocks)
-    prompt = (
-        f"You are BioSkeptic's reviewer weighing a red-team panel's flags on the claim: "
-        f"{_claim_str(report.claim)}.\n\n"
-        f"FIRED concerns — for each: what the check does, what it found, how reliable it is, and how it "
-        f"scored on our benchmark. The '(advanced)' lines give the underlying databases, fields and "
-        f"thresholds:\n{flags}\n\n"
-        f"Checked and clean: {', '.join(f.mechanism for f in report.clean) or 'none'}. "
-        f"Not applicable / no data: {', '.join(report.not_applicable) or 'none'}.\n\n"
-        "Weigh each fired flag against its reliability, benchmark performance, and your biology knowledge "
-        "— a flag whose known blind spot fits this exact claim, or one from a noisy low-precision check, "
-        "is a likely mis-fire. Keep your written assessment plain and concise; use the advanced/technical "
-        "and database detail only when it genuinely matters for THIS claim, not by default. Reply with "
-        "ONLY a JSON object:\n"
-        '{"overall": "<1-2 sentences: does the claim look refuted, shaky, or fine, and why>",\n'
-        ' "likely_misfires": ["<mechanism>: <one line why it is probably a false alarm>"],\n'
-        ' "worth_digging": ["<mechanism>: <one line why it may be a real problem>"]}')
-    raw = ask_claude(prompt, max_tokens=700) or ""
-    try:
-        data = json.loads(raw[raw.find("{"):raw.rfind("}") + 1])
-        return Assessment(overall=data.get("overall", ""),
-                          likely_misfires=data.get("likely_misfires") or [],
-                          worth_digging=data.get("worth_digging") or [])
-    except Exception:
-        return Assessment(overall=raw.strip() or "(assessment unavailable)")
-
-
 # Short human titles for the report panel (the NAMEs are machine ids).
 _TITLES = {
     "direction_of_effect": "Genetic direction of effect",
@@ -141,10 +62,10 @@ def _source_label(url: str) -> str:
     return "source"
 
 
-# Serialize a Report + Assessment into one JSON-ready dict — the shape shared by the agent's memory
-# (as a tool result) and the UI report panel. Each mechanism row: title + what it checks + what it found
-# + cited links.
-def report_to_dict(report: Report, assessment: Assessment) -> dict:
+# Serialize a Report into one JSON-ready dict — the shape shared by the agent's memory (as a tool result)
+# and the UI report panel. Each mechanism row carries what it checks + what it found + cited links, plus
+# the metadata the agent needs to weigh and rank it: reliability, blind spots, benchmark, and precision.
+def report_to_dict(report: Report) -> dict:
     def row(f: Finding) -> dict:
         info = BY_NAME.get(f.mechanism)
         return {
@@ -153,10 +74,12 @@ def report_to_dict(report: Report, assessment: Assessment) -> dict:
             "what_it_checks": info.explanation if info else "",
             "finding": f.explanation,
             "sources": [{"label": _source_label(u), "url": u} for u in f.sources if u],
-            # the agent reads these to judge each concern itself (not just trust the assessment):
+            # the agent reads these to judge and RANK each concern itself:
             "reliability": info.reliability if info else "",
             "blind_spots": info.reliability_advanced if info else "",
             "benchmark": info.evaluation if info else "",
+            "precision": info.precision if info else None,   # None = too rare / disease-independent to grade
+            "recall": info.recall if info else None,
         }
 
     c = report.claim
@@ -166,11 +89,6 @@ def report_to_dict(report: Report, assessment: Assessment) -> dict:
             "target": (c.target.symbol if c.target else None),
             "disease": (c.disease.name if c.disease else None),
             "direction": c.direction,
-        },
-        "assessment": {
-            "overall": assessment.overall,
-            "likely_misfires": assessment.likely_misfires,
-            "worth_digging": assessment.worth_digging,
         },
         "flagged": [row(f) for f in report.flagged],
         "clean": [row(f) for f in report.clean],

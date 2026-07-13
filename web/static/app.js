@@ -37,29 +37,35 @@ reportToggle.addEventListener("click", () => reportPanel.classList.toggle("open"
 function srcChip(s) {
   return `<a class="src-chip" href="${s.url}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`;
 }
+// short host name for a bare url (concern / evidence citations)
+function urlChip(u, label) {
+  let name = label;
+  if (!name) { try { name = new URL(u).hostname.replace(/^www\./, "").split(".")[0]; } catch (e) { name = "link"; } }
+  return `<a class="src-chip" href="${u}" target="_blank" rel="noopener">${esc(name)} ↗</a>`;
+}
+function precTag(m) {
+  return (m.precision != null)
+    ? `<span class="mech-prec" title="benchmark precision — share of its fires that are right">prec ${m.precision.toFixed(2)}</span>`
+    : "";
+}
 function mechCard(m, fired) {
   const srcs = (m.sources || []).map(srcChip).join(" ");
   return `<div class="mech-card ${fired ? "fired" : "clean"}">
-    <div class="mech-title">${esc(m.title)}<span class="mech-tag">${fired ? "flagged" : "passed"}</span></div>
+    <div class="mech-title">${esc(m.title)}<span class="mech-tag">${fired ? "flagged" : "passed"}</span>${precTag(m)}</div>
     <div class="mech-what">${esc(m.what_it_checks)}</div>
     <div class="mech-finding">${esc(m.finding)}</div>
     ${srcs ? `<div class="mech-src">${srcs}</div>` : ""}
   </div>`;
 }
-function assessList(items, cls, heading) {
-  if (!items || !items.length) return "";
-  return `<div class="assess-list ${cls}"><div class="assess-h">${heading}</div>${
-    items.map((x) => `<div class="assess-item">${esc(x)}</div>`).join("")}</div>`;
-}
+// Base report: the claim + the deterministic mechanism panel. The "Concerns to weigh" and "Evidence
+// pulled" sections start hidden and fill in live as add_concern / the dig tools stream events.
 function renderReport(d) {
   const c = d.claim || {};
   const dir = c.direction ? `<span class="dir">${esc(c.direction)}s</span> ` : "";
   reportClaim.innerHTML = `<b>${esc(c.drug || "—")}</b> — ${dir}<b>${esc(c.target || "—")}</b> · ${esc(c.disease || "—")}`;
-  const a = d.assessment || {};
-  let html = `<div class="assess"><div class="assess-overall">${esc(a.overall || "")}</div>`;
-  html += assessList(a.worth_digging, "dig", "Worth investigating");
-  html += assessList(a.likely_misfires, "mis", "Likely false alarms");
-  html += `</div>`;
+  let html = "";
+  html += `<h4 class="report-sec" id="concernsSec" hidden>▲ Concerns to weigh</h4>`;
+  html += `<div id="concernsList"></div>`;
   html += `<h4 class="report-sec">⚑ Concerns flagged (${d.flagged.length})</h4>`;
   html += d.flagged.length ? d.flagged.map((m) => mechCard(m, true)).join("")
                            : `<div class="report-none">Nothing flagged.</div>`;
@@ -69,9 +75,71 @@ function renderReport(d) {
     html += `<h4 class="report-sec">— Not applicable (${d.not_applicable.length})</h4>`;
     html += `<div class="na-chips">${d.not_applicable.map((m) => `<span class="na-chip">${esc(m.title)}</span>`).join("")}</div>`;
   }
+  html += `<h4 class="report-sec" id="evidenceSec" hidden>🔎 Evidence the red-teamer pulled</h4>`;
+  html += `<div id="evidenceList"></div>`;
   reportBody.innerHTML = html;
   reportToggle.hidden = false;          // reveal the toolbar toggle
   reportPanel.classList.add("shown");   // rail appears beside the sidebar (stays collapsed)
+}
+
+// ── live report growth: concerns (agent-curated, ranked) and evidence (dig tools) ─────────
+const SEV_ORDER = { high: 0, medium: 1, low: 2 };
+function concernCard(c) {
+  const sev = SEV_ORDER[c.severity] != null ? c.severity : "medium";
+  const fa = c.likely_false_alarm ? `<span class="concern-fa">likely false alarm</span>` : "";
+  const basis = c.basis ? `<span class="concern-basis">${esc(c.basis)}</span>` : "";
+  const srcs = (c.sources || []).map((u) => urlChip(u)).join(" ");
+  const meta = (basis || srcs) ? `<div class="concern-meta">${basis}${srcs}</div>` : "";
+  return `<div class="concern-card sev-${sev}" data-sev="${sev}">
+    <div class="concern-title"><span class="sev-dot"></span>${esc(c.title)}${fa}</div>
+    <div class="concern-explain">${esc(c.explanation)}</div>${meta}
+  </div>`;
+}
+function addConcern(c) {
+  const list = document.getElementById("concernsList");
+  if (!list) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = concernCard(c);
+  list.appendChild(wrap.firstElementChild);
+  // keep the list sorted high → medium → low as cards stream in
+  [...list.children]
+    .sort((a, b) => (SEV_ORDER[a.dataset.sev] ?? 1) - (SEV_ORDER[b.dataset.sev] ?? 1))
+    .forEach((n) => list.appendChild(n));
+  const sec = document.getElementById("concernsSec"); if (sec) sec.hidden = false;
+}
+function evidenceCard(tool, d) {
+  if (tool === "search_trials") {
+    const chips = (d.trials || []).map((t) => {
+      const stopped = /TERMINATED|WITHDRAWN|SUSPENDED/.test(t.status || "");
+      const why = t.why_stopped ? ` — ${esc(t.why_stopped)}` : "";
+      return `<a class="trial-chip ${stopped ? "stopped" : ""}" href="${t.url}" target="_blank" rel="noopener">${esc(t.nct)} · ${esc(t.phase)} · ${esc(t.status)}${why} ↗</a>`;
+    }).join("");
+    return `<div class="ev-card"><div class="ev-h">🧪 Trials <span class="ev-count">${d.total_count}</span></div>
+      <div class="ev-chips">${chips || `<span class="report-none">no matching trials</span>`}</div></div>`;
+  }
+  if (tool === "search_pubmed") {
+    const chips = (d.papers || []).map((p) =>
+      `<a class="src-chip" href="${p.url}" target="_blank" rel="noopener">${esc(p.first_author || ("PMID " + p.pmid))}${p.year ? " (" + esc(p.year) + ")" : ""} ↗</a>`).join(" ");
+    return `<div class="ev-card"><div class="ev-h">📄 Literature <span class="ev-count">${d.total_count}</span></div>
+      <div class="ev-sub">${esc(d.query || "")}</div><div class="ev-chips">${chips}</div></div>`;
+  }
+  if (tool === "fda_label") {
+    if (!d) return `<div class="ev-card"><div class="ev-h">💊 FDA label</div><div class="report-none">no US label (often a novel drug)</div></div>`;
+    const secs = Object.entries(d.sections || {}).map(([k, v]) =>
+      `<div class="fda-sec"><b>${esc(k)}</b> ${esc(v.slice(0, 260))}${v.length > 260 ? "…" : ""}</div>`).join("");
+    return `<div class="ev-card"><div class="ev-h">💊 FDA label ${urlChip(d.url, d.brand || "DailyMed")}</div>${secs}</div>`;
+  }
+  return "";
+}
+function addEvidence(tool, d) {
+  const html = evidenceCard(tool, d);
+  if (!html) return;
+  const list = document.getElementById("evidenceList");
+  if (!list) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = html;
+  list.appendChild(wrap.firstElementChild);
+  const sec = document.getElementById("evidenceSec"); if (sec) sec.hidden = false;
 }
 
 // ── sidebar page switching ────────────────────────────────────────────────
@@ -101,6 +169,11 @@ const LABELS = {
   suggest_diseases: "Scanning disease candidates",
   resolve_disease: "Resolving the disease",
   build_report: "Running the red-team panel",
+  search_trials: "Searching clinical trials",
+  search_pubmed: "Searching PubMed",
+  fda_label: "Reading the FDA label",
+  add_concern: "Noting a concern",
+  web_search: "Searching the web",
 };
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -204,6 +277,10 @@ form.addEventListener("submit", async (e) => {
         } else if (event.type === "report") {
           renderReport(event.data);
           sawReport = true;
+        } else if (event.type === "concern") {
+          addConcern(event.data);
+        } else if (event.type === "evidence") {
+          addEvidence(event.tool, event.data);
         } else if (event.type === "reply") {
           bubble.className = "msg bot";
           bubble.innerHTML = renderMarkdown(event.text);

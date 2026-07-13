@@ -41,8 +41,9 @@ STAGE 2 — red-team the claim. You are a RED-TEAM LAWYER, never a judge. ONLY a
     and direction ('inhibit' = lowers/blocks/antagonist/degrader, 'activate' = raises/agonist). If you know
     the drug's mechanism, supply the direction; for a novel drug or bare idea, ASK the user first.
   • For each concern the report FLAGS, it gives you: what the check found, what it checks, its known BLIND
-    SPOTS, how it PERFORMS on our benchmark, and cited links — plus checks that passed and ones with no
-    data. Reason from THIS yourself; do not just repeat the report's own summary line.
+    SPOTS, how it PERFORMS on our benchmark, its PRECISION (share of its fires that are right; null = too
+    rare or disease-independent to grade), and cited links — plus checks that passed and ones with no data.
+    Reason from THIS yourself; a low-precision check firing is weak, a high-precision one is strong.
   • Your job is to raise and explain CONCERNS — NOT to reach a verdict. NEVER state or imply an overall
     conclusion about the claim: no "the claim holds / is refuted / looks shaky / is solid / as solid as
     they come / passed all tests / is (dis)couraging", no score, no recommendation, and NO summarizing
@@ -66,9 +67,17 @@ STAGE 2 — red-team the claim. You are a RED-TEAM LAWYER, never a judge. ONLY a
       – web_search: for anything the structured tools don't cover (reviews, news, mechanism write-ups).
     Where a concern was pure reasoning, say so ("no database source"); where a dig tool confirms it, cite
     the trial/PMID/label. Skip a tool when it clearly won't help — don't call all four by rote.
-  • End on the concerns themselves — a clean, cited list with your false-alarm calls — and STOP. Do NOT
-    add a closing paragraph that weighs them up or characterizes the claim overall; that is the user's job.
-    One claim at a time.
+  • CURATE THE REPORT. Call add_concern once for each concern you want on the panel — the ones that
+    survived scrutiny, whether from a mechanism, a dig tool, or your own reasoning. Set severity by
+    weighing the mechanism's precision AND the hardness of the evidence: 'high' for a high-precision check
+    or hard evidence (a terminated late-phase trial, a boxed warning), 'low' for a noisy low-precision
+    check or pure reasoning. Put what it rests on in `basis`, attach `sources` (PMID/NCT/label/mechanism
+    links), and set likely_false_alarm on a fired flag you judged is noise. The panel is the structured,
+    ranked mirror of your chat — curate it, don't skip it.
+  • Close with a short red-team recap: pull together the concerns that SURVIVED scrutiny — skip the likely
+    false alarms, you already called those above — and say which one or two you weigh as the most serious
+    and why. This is a summary of the CONCERNS to keep on the page, NOT a verdict on the claim: never say
+    it holds / is solid / is refuted / passes / looks good or bad overall. One claim at a time.
 
 Keep replies clean — no raw database ids or URL walls. Two exceptions: when you list candidates to confirm,
 include their profile links and descriptions; and if the user asks for a link, id, or source, always give
@@ -84,15 +93,22 @@ def _as_str_tool(fn):
     return wrapper
 
 
-# Like _as_str_tool, but also drops the raw dict result into `sink` — so stream_events can push the
-# report to the UI panel (a "report" SSE event) in addition to returning it to the model.
-def _capturing_tool(fn, sink: list):
+# Like _as_str_tool, but also appends a typed UI event (built by `make_event` from the raw result) to
+# `sink` — so stream_events can push it to the report panel as an SSE event in addition to returning the
+# result to the model. Used for build_report ("report"), the dig tools ("evidence"), and add_concern
+# ("concern"), so the panel assembles live as the agent works.
+def _emitting_tool(fn, sink: list, make_event):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         result = fn(*args, **kwargs)
-        sink.append(result)
+        sink.append(make_event(result))
         return json.dumps(result)
     return wrapper
+
+
+# An "evidence" event carries the tool name so the panel knows how to render it (trials vs papers vs label).
+def _evidence_event(tool_name):
+    return lambda result: {"type": "evidence", "tool": tool_name, "data": result}
 
 
 # Run one chat turn, yielding plain-dict events as they happen (the web layer turns these into SSE):
@@ -101,11 +117,16 @@ def _capturing_tool(fn, sink: list):
 #   {"type": "reply",  "text": <final text>}  -- the assistant's final answer for this turn
 #   {"type": "error",  "message": <str>}      -- if anything fails
 def stream_events(messages: list[dict]):
-    reports: list = []   # build_report drops its result here so we can push it to the UI
-    turn_tools = ([beta_tool(_as_str_tool(fn)) for fn in tools.RESOLVERS]
-                  + [beta_tool(_capturing_tool(tools.build_report, reports))]
-                  + [beta_tool(_as_str_tool(fn)) for fn in tools.DIG]      # id-keyed dig tools (stage 3)
-                  + [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}])  # general web
+    emitted: list = []   # report / evidence / concern events, drained to the UI in call order
+    turn_tools = (
+        [beta_tool(_as_str_tool(fn)) for fn in tools.RESOLVERS]
+        + [beta_tool(_emitting_tool(tools.build_report, emitted,
+                                    lambda r: {"type": "report", "data": r}))]
+        + [beta_tool(_emitting_tool(fn, emitted, _evidence_event(fn.__name__)))   # dig tools (stage 3)
+           for fn in tools.DIG]
+        + [beta_tool(_emitting_tool(tools.add_concern, emitted,
+                                    lambda r: {"type": "concern", "data": r}))]   # curates the panel
+        + [{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}])  # general web
     try:
         runner = _client.beta.messages.tool_runner(
             model=MODEL,
@@ -122,12 +143,12 @@ def stream_events(messages: list[dict]):
             for block in message.content:
                 if block.type == "tool_use":
                     yield {"type": "status", "tool": block.name}
-            while reports:                        # a build_report ran in the prior round -> push it
-                yield {"type": "report", "data": reports.pop(0)}
+            while emitted:                        # tools ran in the prior round -> push their UI events
+                yield emitted.pop(0)
             if message.stop_reason == "end_turn":
                 reply = "".join(b.text for b in message.content if b.type == "text")
-        while reports:                            # flush any report from the final round
-            yield {"type": "report", "data": reports.pop(0)}
+        while emitted:                            # flush any events from the final round
+            yield emitted.pop(0)
         yield {"type": "reply", "text": reply or "(no reply)"}
     except Exception as e:
         yield {"type": "error", "message": f"{type(e).__name__}: {e}"}

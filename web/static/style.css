@@ -161,14 +161,6 @@ body {
 .report-close:hover { color: var(--accent); }
 .report-body { padding: 14px 18px 40px; }
 
-.assess { background: var(--bubble); border-radius: 12px; padding: 14px; margin-bottom: 18px; }
-.assess-overall { font-size: 14px; line-height: 1.5; color: var(--text); }
-.assess-list { margin-top: 10px; }
-.assess-h { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 4px; }
-.assess-list.dig .assess-h { color: var(--red-team); }
-.assess-item { font-size: 13px; line-height: 1.45; margin: 3px 0; padding-left: 10px; position: relative; }
-.assess-item::before { content: "•"; position: absolute; left: 0; color: var(--muted); }
-
 .report-sec { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
   margin: 22px 0 10px; font-weight: 700; }
 
@@ -193,3 +185,36 @@ body {
 .report-none { font-size: 13px; color: var(--muted); font-style: italic; padding: 4px 0 8px; }
 .na-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .na-chip { font-size: 11px; padding: 2px 9px; border-radius: 999px; background: var(--bubble); color: var(--muted); }
+
+/* benchmark-precision badge on a mechanism card */
+.mech-prec { margin-left: auto; font-size: 10px; color: var(--muted); background: var(--bubble);
+  padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+
+/* ── concerns to weigh (agent-curated, ranked) ─────────────────── */
+.concern-card { border: 1px solid var(--border); border-left: 4px solid var(--muted); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 8px; background: var(--bubble); }
+.concern-card.sev-high { border-left-color: var(--red-team); }
+.concern-card.sev-medium { border-left-color: var(--accent); }
+.concern-card.sev-low { border-left-color: var(--muted); }
+.concern-title { font-weight: 700; font-size: 13.5px; display: flex; align-items: center; gap: 7px; }
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+.sev-high .sev-dot { background: var(--red-team); }
+.sev-medium .sev-dot { background: var(--accent); }
+.concern-fa { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: auto; }
+.concern-explain { font-size: 13px; line-height: 1.48; color: var(--text); margin-top: 5px; }
+.concern-meta { margin-top: 7px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.concern-basis { font-size: 11px; color: var(--muted); font-style: italic; }
+
+/* ── evidence the red-teamer pulled (dig tools) ────────────────── */
+.ev-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+.ev-h { font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ev-count { font-size: 11px; color: var(--muted); background: var(--bubble); padding: 1px 8px; border-radius: 999px; }
+.ev-sub { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; margin: 4px 0; word-break: break-word; }
+.ev-chips { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 6px; }
+.trial-chip { font-size: 11px; padding: 2px 9px; border-radius: 8px; text-decoration: none;
+  background: var(--bubble); color: var(--text); border: 1px solid var(--border); }
+.trial-chip:hover { border-color: var(--accent); }
+.trial-chip.stopped { border-color: var(--red-team); color: var(--red-team); }
+.fda-sec { font-size: 12px; line-height: 1.45; color: var(--text); margin-top: 6px; }
+.fda-sec b { color: var(--accent); }

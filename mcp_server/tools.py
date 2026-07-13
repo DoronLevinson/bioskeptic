@@ -4,7 +4,7 @@ from bioskeptic.data import clinicaltrials as _ct
 from bioskeptic.data import openfda as _fda
 from bioskeptic.data import pubmed as _pubmed
 from bioskeptic.refute.core import ClaimTriple
-from bioskeptic.refute.redteam import assess, red_team, report_to_dict
+from bioskeptic.refute.redteam import red_team, report_to_dict
 from bioskeptic.resolver import disease as _disease
 from bioskeptic.resolver import drug as _drug
 from bioskeptic.resolver import target as _target
@@ -53,11 +53,13 @@ def suggest_diseases(query: str, k: int = 5) -> list[dict]:
 
 def build_report(target_symbol: str, target_ensembl: str, disease_name: str, disease_efo: str,
                  direction: str, drug_name: str = "", drug_chembl: str = "") -> dict:
-    """Run the full BioSkeptic red-team panel (every refuting mechanism) plus an overall assessment on a
-    resolved drug-target-disease claim, and return a structured report (flagged concerns, checks that
-    passed, not-applicable checks, cited links, and the assessment). Call this ONCE, after the drug,
-    target, and disease are all pinned down and resolved. `direction` is how the drug acts on the target:
-    'inhibit' (lowers / blocks / antagonist / degrader) or 'activate' (raises / agonist)."""
+    """Run the full BioSkeptic red-team panel (every refuting mechanism) on a resolved drug-target-disease
+    claim and return a structured report: flagged concerns, checks that passed, not-applicable checks, and
+    cited links. Each flagged/passed check also carries what it checks, its known blind spots, its
+    benchmark performance, and its PRECISION (share of its fires that are right; null = too rare or
+    disease-independent to grade) — read these to weigh and RANK each concern yourself. Call this ONCE,
+    after the drug, target, and disease are all pinned down and resolved. `direction` is how the drug acts
+    on the target: 'inhibit' (lowers / blocks / antagonist / degrader) or 'activate' (raises / agonist)."""
     claim = ClaimTriple(
         target=_Target(symbol=target_symbol or None, ensembl=target_ensembl or None),
         disease=_Disease(name=disease_name or None, efo=disease_efo or None,
@@ -65,8 +67,7 @@ def build_report(target_symbol: str, target_ensembl: str, disease_name: str, dis
         drug=(_Drug(name=drug_name or None, chembl_id=drug_chembl or None) if drug_name else None),
         direction=(direction or None),
     )
-    report = red_team(claim)
-    return report_to_dict(report, assess(report))
+    return report_to_dict(red_team(claim))
 
 
 def search_pubmed(term: str, k: int = 6) -> dict:
@@ -101,8 +102,30 @@ def fda_label(drug: str) -> dict | None:
     return asdict(lab) if lab else None
 
 
+_SEVERITIES = ("high", "medium", "low")
+
+
+def add_concern(title: str, explanation: str, severity: str = "medium",
+                basis: str = "", likely_false_alarm: bool = False, sources: list[str] | None = None) -> dict:
+    """Place ONE concern on the live red-team report for the user to see and weigh. Call this repeatedly,
+    after build_report and any digging, to CURATE the concerns that survived scrutiny — including your own
+    reasoning-based flags and ones you grounded with the dig tools. `severity` is 'high', 'medium', or
+    'low', and the report sorts by it: rank a concern higher when it rests on a high-precision mechanism
+    (see each check's precision) or hard evidence (a terminated late-phase trial, a boxed warning), lower
+    for a noisy low-precision check or pure reasoning. `basis` is a short note on what it rests on (e.g.
+    'direction-of-effect check (precision high)', 'ClinicalTrials.gov: terminated Ph3', 'reasoning: BBB
+    penetration'). Set `likely_false_alarm` for a fired flag you judge is probably noise. `sources` are
+    URLs a human can open (PMID, NCT, label, mechanism link). This does not replace your chat reply —
+    it's the structured, ranked panel version of the concerns you explain there."""
+    sev = (severity or "").lower().strip()
+    return {"title": title, "explanation": explanation,
+            "severity": sev if sev in _SEVERITIES else "medium",
+            "basis": basis, "likely_false_alarm": bool(likely_false_alarm),
+            "sources": [s for s in (sources or []) if s]}
+
+
 # The resolver tool set (pin down entities), the dig tools (id-keyed retrieval for chasing concerns after
-# the report), and the full set shared by MCP + the web agent loop.
+# the report), the curation tool (write ranked concerns to the live report), and the full shared set.
 RESOLVERS = [resolve_target, suggest_targets, resolve_drug, suggest_drugs, resolve_disease, suggest_diseases]
 DIG = [search_trials, search_pubmed, fda_label]
-ALL = RESOLVERS + [build_report] + DIG
+ALL = RESOLVERS + [build_report] + DIG + [add_concern]
