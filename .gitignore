@@ -12,3 +12,4 @@ legacy/
 
 # build metadata
 *.egg-info/
+kg_audit/data/
