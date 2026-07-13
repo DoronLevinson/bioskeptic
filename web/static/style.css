@@ -119,12 +119,34 @@ body {
 .composer button:disabled { opacity: .45; cursor: default; }
 
 /* ── red-team report panel ───────────────────────────────────── */
-.report-panel {
+.report-panel { display: none; height: 100%; }
+.report-panel.shown { display: flex; }        /* becomes a thin rail; expands to the open panel */
+
+/* collapsed = a thin clickable rail beside the sidebar */
+.report-rail {
+  flex: 0 0 42px; height: 100%; border: 0; border-right: 1px solid var(--border);
+  background: var(--panel); color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.report-rail:hover { color: var(--accent); background: var(--bubble); }
+.rail-label { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 13px; font-weight: 700; letter-spacing: .06em; }
+.report-panel.open .report-rail { display: none; }
+
+/* open = the full report, expanding to the right (chat stays on the far right) */
+.report-open {
   flex: 0 0 390px; height: 100%; overflow-y: auto;
   background: var(--bg); border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
 }
-.report-panel[hidden] { display: none; }
+.report-panel:not(.open) .report-open { display: none; }
+.report-close { font-size: 26px; }
+
+/* the "open the report" link inside a chat reply */
+.open-report-link {
+  margin-top: 14px; padding: 7px 13px; border-radius: 8px; border: 1px solid var(--accent);
+  background: none; color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.open-report-link:hover { background: var(--accent); color: var(--accent-text); }
 .report-head {
   position: sticky; top: 0; z-index: 2;
   display: flex; align-items: flex-start; gap: 10px;

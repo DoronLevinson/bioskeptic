@@ -26,8 +26,13 @@ const reportBody = document.getElementById("reportBody");
 const reportClaim = document.getElementById("reportClaim");
 const reportToggle = document.getElementById("reportToggle");
 const reportClose = document.getElementById("reportClose");
-reportToggle.addEventListener("click", () => { reportPanel.hidden = !reportPanel.hidden; });
-reportClose.addEventListener("click", () => { reportPanel.hidden = true; });
+const reportRail = document.getElementById("reportRail");
+// "open" = expanded to the right; removing it collapses back to the thin rail (never disappears)
+const openReport = () => reportPanel.classList.add("open");
+const collapseReport = () => reportPanel.classList.remove("open");
+reportRail.addEventListener("click", openReport);
+reportClose.addEventListener("click", collapseReport);
+reportToggle.addEventListener("click", () => reportPanel.classList.toggle("open"));
 
 function srcChip(s) {
   return `<a class="src-chip" href="${s.url}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`;
@@ -65,8 +70,8 @@ function renderReport(d) {
     html += `<div class="na-chips">${d.not_applicable.map((m) => `<span class="na-chip">${esc(m.title)}</span>`).join("")}</div>`;
   }
   reportBody.innerHTML = html;
-  reportToggle.hidden = false;
-  reportPanel.hidden = false;
+  reportToggle.hidden = false;          // reveal the toolbar toggle
+  reportPanel.classList.add("shown");   // rail appears beside the sidebar (stays collapsed)
 }
 
 // ── sidebar page switching ────────────────────────────────────────────────
@@ -172,6 +177,7 @@ form.addEventListener("submit", async (e) => {
   addUser(text);
   messages.push({ role: "user", content: text });
   const bubble = newBotBubble();
+  let sawReport = false;   // did a report arrive this turn? (adds an "open report" link to the reply)
 
   try {
     const res = await fetch("/chat", {
@@ -197,9 +203,17 @@ form.addEventListener("submit", async (e) => {
           showStatus(bubble, event.tool);
         } else if (event.type === "report") {
           renderReport(event.data);
+          sawReport = true;
         } else if (event.type === "reply") {
           bubble.className = "msg bot";
           bubble.innerHTML = renderMarkdown(event.text);
+          if (sawReport) {                       // add a link in the chat that opens the report
+            const link = document.createElement("button");
+            link.className = "open-report-link";
+            link.textContent = "⚑ Open the full red-team report →";
+            link.addEventListener("click", openReport);
+            bubble.appendChild(link);
+          }
           messages.push({ role: "assistant", content: event.text });
         } else if (event.type === "error") {
           bubble.className = "msg bot";

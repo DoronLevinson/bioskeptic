@@ -22,13 +22,18 @@
       </nav>
     </aside>
 
-    <!-- ── report panel (expands when a red-team report arrives) ── -->
-    <aside class="report-panel" id="reportPanel" hidden>
-      <div class="report-head">
-        <div class="report-claim" id="reportClaim"></div>
-        <button class="report-close" id="reportClose" aria-label="Close report">×</button>
+    <!-- ── report panel: a thin rail beside the sidebar that expands to the right ── -->
+    <aside class="report-panel" id="reportPanel">
+      <button class="report-rail" id="reportRail" title="Open the red-team report">
+        <span class="rail-label">⚑ Report</span>
+      </button>
+      <div class="report-open">
+        <div class="report-head">
+          <div class="report-claim" id="reportClaim"></div>
+          <button class="report-close" id="reportClose" aria-label="Collapse report" title="Collapse">‹</button>
+        </div>
+        <div class="report-body" id="reportBody"></div>
       </div>
-      <div class="report-body" id="reportBody"></div>
     </aside>
 
     <!-- ── main ────────────────────────────────────────────────── -->
