@@ -1,23 +1,29 @@
 // ── theme toggle (light default; remembered) ──────────────────────────────
 const root = document.documentElement;
 const themeToggle = document.getElementById("themeToggle");
-function applyThemeIcon() {
-  themeToggle.textContent = root.dataset.theme === "dark" ? "☀" : "☾";
+function applyThemeState() {
+  const dark = root.dataset.theme === "dark";
+  themeToggle.classList.toggle("on", dark);
+  const lbl = document.getElementById("themeLabel");
+  if (lbl) lbl.textContent = dark ? "Dark" : "Light";
 }
-applyThemeIcon();
+applyThemeState();
 themeToggle.addEventListener("click", () => {
   root.dataset.theme = root.dataset.theme === "dark" ? "" : "dark";
   try { localStorage.setItem("theme", root.dataset.theme); } catch (e) {}
-  applyThemeIcon();
+  applyThemeState();
 });
 
-// ── comparison mode toggle (visual only for now) ──────────────────────────
+// ── brand = start a new conversation (a fresh reload; the old convo isn't saved) ──
+document.getElementById("brandHome").addEventListener("click", () => location.reload());
+
+// ── comparison mode toggle (demo, visual only for now) ────────────────────
 const compareToggle = document.getElementById("compareToggle");
 let compareMode = false;
 compareToggle.addEventListener("click", () => {
   compareMode = !compareMode;
   compareToggle.classList.toggle("on", compareMode);
-  // (does nothing else yet — wired up when we build the side-by-side panel)
+  // (a demo switch for now — wired up when we build the side-by-side comparison)
 });
 
 // ── red-team report panel ─────────────────────────────────────────────────
@@ -39,8 +45,12 @@ function halfWidth() {
 function openReport() {
   if (!reportUserSized) document.documentElement.style.setProperty("--report-w", halfWidth() + "px");
   reportPanel.classList.add("open");
+  reportToggle.classList.add("on");
 }
-const collapseReport = () => reportPanel.classList.remove("open");
+function collapseReport() {
+  reportPanel.classList.remove("open");
+  reportToggle.classList.remove("on");
+}
 reportRail.addEventListener("click", openReport);
 reportClose.addEventListener("click", collapseReport);
 reportToggle.addEventListener("click", () => (reportPanel.classList.contains("open") ? collapseReport() : openReport()));
@@ -136,7 +146,7 @@ function renderReport(d) {
   html += `<h4 class="report-sec" id="evidenceSec" hidden>🔎 Evidence the red-teamer pulled</h4>`;
   html += `<div id="evidenceList"></div>`;
   reportBody.innerHTML = html;
-  reportToggle.hidden = false;          // reveal the toolbar toggle
+  reportToggle.hidden = false;          // reveal the sidebar Report toggle
   reportPanel.classList.add("shown");   // rail appears beside the sidebar (stays collapsed)
 }
 
@@ -229,6 +239,7 @@ const LABELS = {
   resolve_target: "Resolving the target",
   suggest_diseases: "Scanning disease candidates",
   resolve_disease: "Resolving the disease",
+  drug_targets: "Finding the drug's targets",
   build_report: "Running the red-team panel",
   search_trials: "Searching clinical trials",
   search_pubmed: "Searching PubMed",
@@ -297,6 +308,44 @@ function showStatus(bubble, tool) {
   scrollDown();
 }
 
+// ── demo suggestions: prefill the composer with example prompts ─────────────
+const demoHint = document.getElementById("demoHint");
+const demoPanel = document.getElementById("demoPanel");
+const composerArea = document.getElementById("composerArea");
+const DEMOS = [
+  { group: "Get started", items: [
+    { text: "Hello, can you introduce yourself?" },
+    { text: "What is BioSkeptic?" },
+  ]},
+  { group: "Red-team a claim", items: [
+    { text: "Red-team this: adalimumab inhibits TNF to treat rheumatoid arthritis", tag: "correct claim" },
+    { text: "Red-team this: an activator of PCSK9 to treat Alzheimer's disease", tag: "false claim" },
+    { text: "Red-team this: an activator of ZNF229 for high LDL cholesterol", tag: "false · obscure" },
+  ]},
+];
+demoPanel.innerHTML = DEMOS.map((g, gi) =>
+  `<div class="demo-group"><div class="demo-group-h">${esc(g.group)}</div>` +
+  g.items.map((it, i) =>
+    `<button type="button" class="demo-item" data-g="${gi}" data-i="${i}"><span>${esc(it.text)}</span>` +
+    (it.tag ? `<span class="demo-tag">${esc(it.tag)}</span>` : "") + `</button>`
+  ).join("") + `</div>`).join("");
+
+demoHint.addEventListener("click", () => { demoPanel.hidden = !demoPanel.hidden; });
+document.addEventListener("click", (e) => {            // click outside closes the panel
+  if (!demoPanel.hidden && !composerArea.contains(e.target)) demoPanel.hidden = true;
+});
+demoPanel.querySelectorAll(".demo-item").forEach((btn) => {
+  btn.addEventListener("click", () => {                // prefill the box, ready to send (not auto-sent)
+    input.value = DEMOS[+btn.dataset.g].items[+btn.dataset.i].text;
+    demoPanel.hidden = true;
+    input.focus();
+  });
+});
+function hideDemos() {                                  // once a report exists, retire the demos for good
+  demoPanel.hidden = true;
+  demoHint.style.display = "none";
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
@@ -337,7 +386,9 @@ form.addEventListener("submit", async (e) => {
           showStatus(bubble, event.tool);
         } else if (event.type === "report") {
           renderReport(event.data);
+          openReport();                        // open by default the moment the report is created
           sawReport = true;
+          hideDemos();                         // a report exists now — retire the example prompts
         } else if (event.type === "concern") {
           addConcern(event.data);
         } else if (event.type === "evidence") {

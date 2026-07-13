@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from bioskeptic.data.core import Datapoint
 from bioskeptic.resolver.disease import Disease
+from bioskeptic.resolver.drug import Drug
 from bioskeptic.resolver.fetch import ot_query
 from bioskeptic.resolver.target import Target
 
@@ -59,6 +60,57 @@ def genetic_direction(target: Target, disease: Disease) -> Datapoint | None:
         url=f"https://platform.opentargets.org/evidence/{ensembl}/{efo}",
         citations=[f"https://pubmed.ncbi.nlm.nih.gov/{p}" for p in seen],
     )
+
+
+# --- drug -> mechanism-of-action target(s), for pinning a missing target from the drug -------------
+# ChEMBL action types that map to a therapeutic direction on the target (same buckets the benchmark uses).
+_MOA_INHIBIT = {"INHIBITOR", "ANTAGONIST", "BLOCKER", "NEGATIVE ALLOSTERIC MODULATOR",
+                "DEGRADER", "INVERSE AGONIST", "DISRUPTING AGENT"}
+_MOA_ACTIVATE = {"AGONIST", "ACTIVATOR", "POSITIVE ALLOSTERIC MODULATOR", "PARTIAL AGONIST",
+                 "STABILISER", "OPENER"}
+
+
+def _moa_direction(action_type: str) -> str | None:
+    at = (action_type or "").upper()
+    if at in _MOA_INHIBIT:
+        return "inhibit"
+    if at in _MOA_ACTIVATE:
+        return "activate"
+    return None
+
+
+@dataclass
+class DrugTarget:
+    symbol: str
+    ensembl: str
+    action_type: str          # ChEMBL mechanism action type, e.g. "INHIBITOR", "AGONIST"
+    direction: str | None     # therapeutic direction it implies: "inhibit" / "activate" / None
+
+
+# The drug's mechanism-of-action target(s) from Open Targets (ChEMBL MoA) — used to pin a missing target
+# from a named drug. Returns them in MoA order (the first is usually the primary/canonical target),
+# deduped by gene, each with the action type and the direction it implies.
+def drug_targets(drug: Drug) -> list[DrugTarget]:
+    chembl = drug.chembl_id if drug else None
+    if not chembl:
+        return []
+    q = """query D($id:String!){ drug(chemblId:$id){
+      mechanismsOfAction{ rows{ actionType targets{ id approvedSymbol } } } } }"""
+    d = (ot_query(q, {"id": chembl}) or {}).get("drug")
+    if not d:
+        return []
+    seen: set = set()
+    out: list[DrugTarget] = []
+    for r in (d.get("mechanismsOfAction") or {}).get("rows") or []:
+        at = r.get("actionType")
+        for t in r.get("targets") or []:
+            ens, sym = t.get("id"), t.get("approvedSymbol")
+            if not ens or ens in seen:
+                continue
+            seen.add(ens)
+            out.append(DrugTarget(symbol=sym or "", ensembl=ens, action_type=at or "",
+                                   direction=_moa_direction(at)))
+    return out
 
 
 # The evidence types behind a target-disease association ({datatype: score}) — one datapoint.

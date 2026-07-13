@@ -41,6 +41,20 @@ def suggest_drugs(query: str, k: int = 5) -> list[dict]:
     return [asdict(h) for h in _drug.suggest_drugs(query, k)]
 
 
+def drug_targets(drug_chembl: str, drug_name: str = "") -> dict:
+    """List a drug's DIRECT molecular mechanism-of-action target(s) from Open Targets (ChEMBL), for pinning
+    a MISSING target from a named drug. Pass the resolved drug's ChEMBL id. Returns {total, targets:[...]}
+    (targets capped at 10, in MoA order — the first is usually primary); each has symbol, Ensembl id, the
+    action type (e.g. INHIBITOR, AGONIST), and the direction it implies ('inhibit'/'activate'). Note: these
+    are DIRECT targets — often 1-3 clean ones (aspirin -> PTGS2/PTGS1), but sometimes many subunits of one
+    protein complex (metformin -> dozens of mitochondrial complex-I NDUF* genes), and a drug's FAMOUS target
+    can be a downstream effector NOT listed here (metformin's AMPK/PRKAA1). Empty if the drug has no MoA
+    record (novel drugs). Use it to ground the options, then let the user pick which target to red-team."""
+    from bioskeptic.data.opentargets import drug_targets as _dt
+    ts = _dt(_Drug(name=drug_name or None, chembl_id=drug_chembl or None))
+    return {"total": len(ts), "targets": [asdict(t) for t in ts[:10]]}
+
+
 def resolve_disease(query: str) -> dict:
     """Resolve a disease (name, EFO/MONDO id, or DRKG 'Disease::MESH:…') to its full ID passport."""
     return _passport(_disease.resolve_disease(query))
@@ -132,6 +146,7 @@ def add_concern(title: str, explanation: str, severity: str = "medium", origin: 
 
 # The resolver tool set (pin down entities), the dig tools (id-keyed retrieval for chasing concerns after
 # the report), the curation tool (write ranked concerns to the live report), and the full shared set.
-RESOLVERS = [resolve_target, suggest_targets, resolve_drug, suggest_drugs, resolve_disease, suggest_diseases]
+RESOLVERS = [resolve_target, suggest_targets, resolve_drug, suggest_drugs, resolve_disease, suggest_diseases,
+             drug_targets]
 DIG = [search_trials, search_pubmed, fda_label]
 ALL = RESOLVERS + [build_report] + DIG + [add_concern]

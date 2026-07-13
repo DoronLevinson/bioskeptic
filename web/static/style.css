@@ -48,8 +48,14 @@ body {
 .report-resizer { display: none; }                          /* only when the report is open */
 .report-panel.open + .report-resizer { display: block; }
 .brand {
-  font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 700;
-  color: var(--text); padding: 4px 8px;
+  display: block; width: 100%; text-align: left; background: none; border: 0; cursor: pointer;
+  padding: 6px 8px; margin-bottom: 4px; border-radius: 8px; transition: background .15s;
+}
+.brand:hover { background: rgba(0, 0, 0, .04); }
+:root[data-theme="dark"] .brand:hover { background: rgba(255, 255, 255, .05); }
+.brand-name {
+  display: block; font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 700;
+  color: var(--text); line-height: 1.1;
 }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
@@ -62,15 +68,30 @@ body {
 
 .main { position: relative; flex: 1; min-width: 0; }
 
-/* ── top-right toggles ───────────────────────────────────────── */
-.toolbar { position: absolute; top: 14px; right: 18px; display: flex; gap: 8px; z-index: 5; }
-.toggle {
-  border: 1px solid var(--border); background: var(--bg); color: var(--text);
-  padding: 6px 12px; border-radius: 999px; font-size: 13px; cursor: pointer;
+/* ── top-right toggles (report / comparison / light-dark) ────── */
+/* compact icon + label pills that fill with their own colour when active */
+.toolbar { position: absolute; top: 14px; right: 24px; display: flex; gap: 8px; z-index: 6; }
+.tgl {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 13px; border: 1px solid transparent; border-radius: 999px;
+  background: rgba(0, 0, 0, .05); color: var(--text); font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .1s ease;
 }
-.toggle.icon { width: 34px; padding: 6px 0; font-size: 15px; }
-.toggle:hover { border-color: var(--accent); }
-.toggle.on { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+:root[data-theme="dark"] .tgl { background: rgba(255, 255, 255, .06); }
+.tgl:hover { background: rgba(0, 0, 0, .09); }
+:root[data-theme="dark"] .tgl:hover { background: rgba(255, 255, 255, .1); }
+.tgl:active { transform: translateY(1px); }
+.tgl[hidden] { display: none; }   /* Report toggle stays hidden until a report exists */
+
+/* each toggle gets its own "on" colour (never the accent orange) */
+#reportToggle.on  { background: #3a6ea5; border-color: #3a6ea5; color: #fff; }  /* report — blue */
+#compareToggle.on { background: var(--red-team); border-color: var(--red-team); color: #fff; }  /* comparison — red */
+#themeToggle.on   { background: #2f3550; border-color: #454c6b; color: #fff; }  /* dark — night navy */
+.tgl.on:hover { filter: brightness(1.08); box-shadow: 0 3px 12px rgba(0, 0, 0, .18); }
+.ico { width: 16px; height: 16px; flex: none; }
+.ico-sun { display: none; }
+#themeToggle.on .ico-moon { display: none; }
+#themeToggle.on .ico-sun { display: inline-block; }
 
 /* ── pages ───────────────────────────────────────────────────── */
 .page { height: 100%; }
@@ -84,16 +105,19 @@ body {
 .hero-sub { font-size: 19px; color: var(--muted); margin: 10px 0 0; }
 .red-team { font-weight: 700; color: var(--red-team); }
 
+/* the composer + its demo suggestions travel together as one centered block */
+.composer-area { position: relative; width: 100%; max-width: 760px; margin: 0 auto; }
+
 /* empty state: logo + composer centered in the middle */
 .chat.empty { justify-content: center; align-items: center; }
 .chat.empty .messages { display: none; }
 .chat.empty .greeting { margin-bottom: 26px; }
-.chat.empty .composer { width: 100%; max-width: 720px; }
+.chat.empty .composer-area { max-width: 720px; }
 
-/* active state: messages scroll on top, composer pinned to bottom */
+/* active state: messages scroll on top, composer floats a little above the bottom */
 .chat.active .greeting { display: none; }
 .chat.active .messages { flex: 1 1 auto; overflow-y: auto; width: 100%; }
-.chat.active .composer { width: 100%; max-width: 760px; margin: 0 auto; }
+.chat.active .composer-area { margin-bottom: 30px; }
 
 .thread { max-width: 760px; margin: 0 auto; padding: 24px 0; display: flex; flex-direction: column; gap: 20px; }
 
@@ -117,7 +141,7 @@ body {
 .msg.bot code { background: var(--bubble); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
 
 /* composer */
-.composer { display: flex; gap: 8px; align-items: center; margin-bottom: 22px;
+.composer { display: flex; gap: 8px; align-items: center;
   background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 8px 8px 8px 16px; box-shadow: var(--shadow); }
 .composer input { flex: 1; border: 0; background: none; color: var(--text); font-size: 15px; outline: none; }
 .composer input::placeholder { color: var(--muted); }
@@ -126,6 +150,26 @@ body {
   background: var(--accent); color: var(--accent-text); font-size: 17px; cursor: pointer;
 }
 .composer button:disabled { opacity: .45; cursor: default; }
+
+/* ── demo suggestions under the composer ─────────────────────── */
+.demo-hint { display: block; margin: 9px auto 0; padding: 4px 10px; border: 0; background: none;
+  color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.demo-hint:hover { color: var(--accent); }
+
+/* the panel floats up over the conversation, semi-transparent */
+.demo-panel { position: absolute; left: 0; right: 0; bottom: calc(100% + 10px); z-index: 20;
+  background: var(--panel);
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--border); border-radius: 14px; padding: 10px; box-shadow: var(--shadow); }
+.demo-panel[hidden] { display: none; }
+.demo-group + .demo-group { margin-top: 6px; border-top: 1px solid var(--border); padding-top: 6px; }
+.demo-group-h { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 2px 8px 4px; }
+.demo-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: 0; border-radius: 9px; padding: 7px 10px; color: var(--text); font-size: 13.5px; line-height: 1.35; }
+.demo-item:hover { background: var(--bubble); }
+.demo-tag { margin-left: auto; flex: none; font-size: 10px; font-weight: 700; opacity: .55;
+  color: var(--muted); text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
 
 /* ── red-team report panel ───────────────────────────────────── */
 .report-panel { display: none; height: 100%; flex: 0 0 46px; }
