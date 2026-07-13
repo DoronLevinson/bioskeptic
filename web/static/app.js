@@ -24,15 +24,57 @@ compareToggle.addEventListener("click", () => {
 const reportPanel = document.getElementById("reportPanel");
 const reportBody = document.getElementById("reportBody");
 const reportClaim = document.getElementById("reportClaim");
+const reportSummary = document.getElementById("reportSummary");
 const reportToggle = document.getElementById("reportToggle");
 const reportClose = document.getElementById("reportClose");
 const reportRail = document.getElementById("reportRail");
-// "open" = expanded to the right; removing it collapses back to the thin rail (never disappears)
-const openReport = () => reportPanel.classList.add("open");
+
+// "open" = expanded to fill the left half; removing it collapses back to the thin rail (never disappears).
+// Until the user drags to resize, opening sizes the report to half the space right of the sidebar.
+let reportUserSized = false;
+function halfWidth() {
+  const sidebar = document.querySelector(".sidebar").offsetWidth;
+  return Math.round((window.innerWidth - sidebar - 12) / 2);
+}
+function openReport() {
+  if (!reportUserSized) document.documentElement.style.setProperty("--report-w", halfWidth() + "px");
+  reportPanel.classList.add("open");
+}
 const collapseReport = () => reportPanel.classList.remove("open");
 reportRail.addEventListener("click", openReport);
 reportClose.addEventListener("click", collapseReport);
-reportToggle.addEventListener("click", () => reportPanel.classList.toggle("open"));
+reportToggle.addEventListener("click", () => (reportPanel.classList.contains("open") ? collapseReport() : openReport()));
+
+// drag handles: sidebar width, and the report/chat split (both stored as CSS vars)
+function initResizer(el) {
+  el.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    el.classList.add("dragging");
+    document.body.style.userSelect = "none";
+    const target = el.dataset.target;
+    const move = (ev) => {
+      const sidebar = document.querySelector(".sidebar").offsetWidth;
+      if (target === "sidebar") {
+        const w = Math.min(Math.max(ev.clientX, 160), 420);
+        document.documentElement.style.setProperty("--sidebar-w", w + "px");
+      } else {
+        const w = Math.min(Math.max(ev.clientX - sidebar - 5, 300), window.innerWidth - sidebar - 380);
+        document.documentElement.style.setProperty("--report-w", w + "px");
+        reportUserSized = true;
+      }
+    };
+    const up = () => {
+      el.classList.remove("dragging");
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  });
+}
+initResizer(document.getElementById("sidebarResizer"));
+initResizer(document.getElementById("reportResizer"));
 
 function srcChip(s) {
   return `<a class="src-chip" href="${s.url}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`;
@@ -57,22 +99,38 @@ function mechCard(m, fired) {
     ${srcs ? `<div class="mech-src">${srcs}</div>` : ""}
   </div>`;
 }
-// Base report: the claim + the deterministic mechanism panel. The "Concerns to weigh" and "Evidence
-// pulled" sections start hidden and fill in live as add_concern / the dig tools stream events.
+// summary counts: red = flagged mechanisms, orange = agent-added concerns (literature/reasoning/etc.,
+// grows as add_concern streams in), green = passed, grey = no data. Rendered as a 4-stat strip.
+let reportCounts = { red: 0, orange: 0, green: 0, grey: 0 };
+function renderSummary() {
+  const stats = [
+    ["red", reportCounts.red, "possible refuting mechanisms"],
+    ["orange", reportCounts.orange, "concerns from literature & reasoning"],
+    ["green", reportCounts.green, "refuting mechanisms passed"],
+    ["grey", reportCounts.grey, "checks with no data"],
+  ];
+  reportSummary.innerHTML = stats.map(([cls, n, txt]) =>
+    `<div class="sum-stat ${cls}"><span class="sum-num">${n}</span><span class="sum-txt">${esc(txt)}</span></div>`).join("");
+}
+
+// Base report: title + claim + summary + the deterministic mechanism panel. The "Concerns to weigh" and
+// "Evidence pulled" sections start hidden and fill in live as add_concern / the dig tools stream events.
 function renderReport(d) {
   const c = d.claim || {};
   const dir = c.direction ? `<span class="dir">${esc(c.direction)}s</span> ` : "";
   reportClaim.innerHTML = `<b>${esc(c.drug || "—")}</b> — ${dir}<b>${esc(c.target || "—")}</b> · ${esc(c.disease || "—")}`;
+  reportCounts = { red: d.flagged.length, orange: 0, green: d.clean.length, grey: (d.not_applicable || []).length };
+  renderSummary();
   let html = "";
   html += `<h4 class="report-sec" id="concernsSec" hidden>▲ Concerns to weigh</h4>`;
-  html += `<div id="concernsList"></div>`;
-  html += `<h4 class="report-sec">⚑ Concerns flagged (${d.flagged.length})</h4>`;
-  html += d.flagged.length ? d.flagged.map((m) => mechCard(m, true)).join("")
-                           : `<div class="report-none">Nothing flagged.</div>`;
-  html += `<h4 class="report-sec">✓ Checks that passed (${d.clean.length})</h4>`;
-  html += d.clean.map((m) => mechCard(m, false)).join("");
+  html += `<div id="concernsList" class="card-grid"></div>`;
+  html += `<h4 class="report-sec">⚑ Refuting mechanisms flagged (${d.flagged.length})</h4>`;
+  html += `<div class="card-grid">${d.flagged.length ? d.flagged.map((m) => mechCard(m, true)).join("")
+                                                      : `<div class="report-none">Nothing flagged.</div>`}</div>`;
+  html += `<h4 class="report-sec">✓ Refuting mechanisms passed (${d.clean.length})</h4>`;
+  html += `<div class="card-grid">${d.clean.map((m) => mechCard(m, false)).join("")}</div>`;
   if ((d.not_applicable || []).length) {
-    html += `<h4 class="report-sec">— Not applicable (${d.not_applicable.length})</h4>`;
+    html += `<h4 class="report-sec">— No data (${d.not_applicable.length})</h4>`;
     html += `<div class="na-chips">${d.not_applicable.map((m) => `<span class="na-chip">${esc(m.title)}</span>`).join("")}</div>`;
   }
   html += `<h4 class="report-sec" id="evidenceSec" hidden>🔎 Evidence the red-teamer pulled</h4>`;
@@ -87,9 +145,10 @@ const SEV_ORDER = { high: 0, medium: 1, low: 2 };
 function concernCard(c) {
   const sev = SEV_ORDER[c.severity] != null ? c.severity : "medium";
   const fa = c.likely_false_alarm ? `<span class="concern-fa">likely false alarm</span>` : "";
+  const org = c.origin ? `<span class="concern-origin">${esc(c.origin)}</span>` : "";
   const basis = c.basis ? `<span class="concern-basis">${esc(c.basis)}</span>` : "";
   const srcs = (c.sources || []).map((u) => urlChip(u)).join(" ");
-  const meta = (basis || srcs) ? `<div class="concern-meta">${basis}${srcs}</div>` : "";
+  const meta = (org || basis || srcs) ? `<div class="concern-meta">${org}${basis}${srcs}</div>` : "";
   return `<div class="concern-card sev-${sev}" data-sev="${sev}">
     <div class="concern-title"><span class="sev-dot"></span>${esc(c.title)}${fa}</div>
     <div class="concern-explain">${esc(c.explanation)}</div>${meta}
@@ -106,6 +165,8 @@ function addConcern(c) {
     .sort((a, b) => (SEV_ORDER[a.dataset.sev] ?? 1) - (SEV_ORDER[b.dataset.sev] ?? 1))
     .forEach((n) => list.appendChild(n));
   const sec = document.getElementById("concernsSec"); if (sec) sec.hidden = false;
+  // count agent-added (non-mechanism) concerns toward the orange summary stat
+  if (c.origin && c.origin !== "mechanism") { reportCounts.orange += 1; renderSummary(); }
 }
 function evidenceCard(tool, d) {
   if (tool === "search_trials") {

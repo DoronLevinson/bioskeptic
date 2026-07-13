@@ -103,23 +103,29 @@ def fda_label(drug: str) -> dict | None:
 
 
 _SEVERITIES = ("high", "medium", "low")
+_ORIGINS = ("mechanism", "literature", "trial", "label", "reasoning")
 
 
-def add_concern(title: str, explanation: str, severity: str = "medium",
+def add_concern(title: str, explanation: str, severity: str = "medium", origin: str = "reasoning",
                 basis: str = "", likely_false_alarm: bool = False, sources: list[str] | None = None) -> dict:
     """Place ONE concern on the live red-team report for the user to see and weigh. Call this repeatedly,
     after build_report and any digging, to CURATE the concerns that survived scrutiny — including your own
     reasoning-based flags and ones you grounded with the dig tools. `severity` is 'high', 'medium', or
     'low', and the report sorts by it: rank a concern higher when it rests on a high-precision mechanism
     (see each check's precision) or hard evidence (a terminated late-phase trial, a boxed warning), lower
-    for a noisy low-precision check or pure reasoning. `basis` is a short note on what it rests on (e.g.
+    for a noisy low-precision check or pure reasoning. `origin` is where it comes from: 'mechanism' (a
+    fired refuting mechanism from the report), 'literature' (PubMed), 'trial' (ClinicalTrials.gov), 'label'
+    (FDA label), or 'reasoning' (your own knowledge, no database source) — the report's summary counts the
+    non-mechanism ones as concerns you added. `basis` is a short note on what it rests on (e.g.
     'direction-of-effect check (precision high)', 'ClinicalTrials.gov: terminated Ph3', 'reasoning: BBB
     penetration'). Set `likely_false_alarm` for a fired flag you judge is probably noise. `sources` are
     URLs a human can open (PMID, NCT, label, mechanism link). This does not replace your chat reply —
     it's the structured, ranked panel version of the concerns you explain there."""
     sev = (severity or "").lower().strip()
+    org = (origin or "").lower().strip()
     return {"title": title, "explanation": explanation,
             "severity": sev if sev in _SEVERITIES else "medium",
+            "origin": org if org in _ORIGINS else "reasoning",
             "basis": basis, "likely_false_alarm": bool(likely_false_alarm),
             "sources": [s for s in (sources or []) if s]}
 

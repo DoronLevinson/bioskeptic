@@ -71,7 +71,8 @@ STAGE 2 — red-team the claim. You are a RED-TEAM LAWYER, never a judge. ONLY a
     survived scrutiny, whether from a mechanism, a dig tool, or your own reasoning. Set severity by
     weighing the mechanism's precision AND the hardness of the evidence: 'high' for a high-precision check
     or hard evidence (a terminated late-phase trial, a boxed warning), 'low' for a noisy low-precision
-    check or pure reasoning. Put what it rests on in `basis`, attach `sources` (PMID/NCT/label/mechanism
+    check or pure reasoning. Set origin to where it comes from ('mechanism', 'literature', 'trial',
+    'label', or 'reasoning'). Put what it rests on in `basis`, attach `sources` (PMID/NCT/label/mechanism
     links), and set likely_false_alarm on a fired flag you judged is noise. The panel is the structured,
     ranked mirror of your chat — curate it, don't skip it.
   • Close with a short red-team recap: pull together the concerns that SURVIVED scrutiny — skip the likely

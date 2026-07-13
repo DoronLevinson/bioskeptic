@@ -9,6 +9,7 @@
   --accent: #c25f3c;      /* BioSkeptic orange — eased a bit */
   --accent-text: #ffffff;
   --red-team: #c74a39;    /* ~65% red / 35% orange, for "Red Team" — eased a bit */
+  --ok: #3f9d5a;          /* green, for "checks passed" */
   --shadow: 0 1px 3px rgba(0, 0, 0, .06);
 }
 :root[data-theme="dark"] {
@@ -21,6 +22,7 @@
   --accent: #e0764f;
   --accent-text: #1e1e1c;
   --red-team: #e85643;
+  --ok: #5cb877;
   --shadow: 0 1px 3px rgba(0, 0, 0, .3);
 }
 
@@ -32,12 +34,19 @@ body {
 }
 
 /* ── layout ──────────────────────────────────────────────────── */
+:root { --sidebar-w: 220px; --report-w: 480px; }
 .layout { display: flex; height: 100%; }
 
 .sidebar {
-  width: 220px; flex: 0 0 220px; background: var(--panel);
+  width: var(--sidebar-w); flex: 0 0 var(--sidebar-w); background: var(--panel);
   border-right: 1px solid var(--border); padding: 20px 12px; display: flex; flex-direction: column; gap: 18px;
 }
+
+/* drag handles between panels (hover to see, drag to resize) */
+.resizer { flex: 0 0 5px; cursor: col-resize; background: transparent; z-index: 6; margin: 0 -2px; }
+.resizer:hover, .resizer.dragging { background: var(--accent); opacity: .5; }
+.report-resizer { display: none; }                          /* only when the report is open */
+.report-panel.open + .report-resizer { display: block; }
 .brand {
   font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 700;
   color: var(--text); padding: 4px 8px;
@@ -119,27 +128,35 @@ body {
 .composer button:disabled { opacity: .45; cursor: default; }
 
 /* ── red-team report panel ───────────────────────────────────── */
-.report-panel { display: none; height: 100%; }
+.report-panel { display: none; height: 100%; flex: 0 0 46px; }
 .report-panel.shown { display: flex; }        /* becomes a thin rail; expands to the open panel */
+.report-panel.open { flex: 0 0 var(--report-w); }   /* open = fills the left half (resizable) */
 
-/* collapsed = a thin clickable rail beside the sidebar */
+/* collapsed = a thin clickable rail beside the sidebar: "Report ›" running vertically */
 .report-rail {
-  flex: 0 0 42px; height: 100%; border: 0; border-right: 1px solid var(--border);
+  flex: 1; height: 100%; border: 0; border-right: 1px solid var(--border);
   background: var(--panel); color: var(--muted); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
 }
 .report-rail:hover { color: var(--accent); background: var(--bubble); }
-.rail-label { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 13px; font-weight: 700; letter-spacing: .06em; }
+.rail-label { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.rail-arrow { font-size: 15px; font-weight: 700; }
 .report-panel.open .report-rail { display: none; }
 
-/* open = the full report, expanding to the right (chat stays on the far right) */
-.report-open {
-  flex: 0 0 390px; height: 100%; overflow-y: auto;
-  background: var(--bg); border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-}
+/* open = the full report; content scrolls, a big vertical "close" bar sits on the right edge */
+.report-open { flex: 1; height: 100%; display: flex; background: var(--bg); min-width: 0; }
 .report-panel:not(.open) .report-open { display: none; }
-.report-close { font-size: 26px; }
+.report-scroll { flex: 1; height: 100%; overflow-y: auto; padding: 18px 20px 44px; min-width: 0; }
+
+/* big vertical close button on the right (mirrors the collapsed rail) */
+.report-closebar {
+  flex: 0 0 40px; height: 100%; border: 0; border-left: 1px solid var(--border);
+  background: var(--panel); color: var(--muted); cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+}
+.report-closebar:hover { color: var(--accent); background: var(--bubble); }
+.closebar-arrow { font-size: 16px; font-weight: 700; }
+.closebar-label { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 13px; font-weight: 700; letter-spacing: .08em; }
 
 /* the "open the report" link inside a chat reply */
 .open-report-link {
@@ -147,19 +164,27 @@ body {
   background: none; color: var(--accent); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .open-report-link:hover { background: var(--accent); color: var(--accent-text); }
-.report-head {
-  position: sticky; top: 0; z-index: 2;
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 16px 18px 12px; background: var(--bg); border-bottom: 1px solid var(--border);
-}
-.report-claim { flex: 1; font-size: 14px; line-height: 1.4; color: var(--text); }
+
+/* title + claim + summary at the top of the report */
+.report-title { font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 700; color: var(--red-team); }
+.report-claim { font-size: 13.5px; line-height: 1.4; color: var(--muted); margin-top: 3px; }
+.report-claim b { color: var(--text); }
 .report-claim .dir { color: var(--accent); font-style: italic; }
-.report-close {
-  border: 0; background: none; color: var(--muted); font-size: 22px; line-height: 1;
-  cursor: pointer; padding: 0 2px;
-}
-.report-close:hover { color: var(--accent); }
-.report-body { padding: 14px 18px 40px; }
+.report-body { margin-top: 4px; }
+
+/* summary strip: 4 colored counts (flagged / added / passed / no-data) */
+.report-summary { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+.sum-stat { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border-radius: 10px;
+  background: var(--bubble); border-left: 3px solid var(--muted); flex: 1 1 180px; min-width: 150px; }
+.sum-num { font-weight: 800; font-size: 17px; line-height: 1; min-width: 18px; text-align: center; }
+.sum-txt { font-size: 11.5px; line-height: 1.3; color: var(--muted); }
+.sum-stat.red { border-left-color: var(--red-team); } .sum-stat.red .sum-num { color: var(--red-team); }
+.sum-stat.orange { border-left-color: var(--accent); } .sum-stat.orange .sum-num { color: var(--accent); }
+.sum-stat.green { border-left-color: var(--ok); } .sum-stat.green .sum-num { color: var(--ok); }
+.sum-stat.grey .sum-num { color: var(--muted); }
+
+/* two-up card grid (collapses to one column when the panel is narrow) */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
 
 .report-sec { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
   margin: 22px 0 10px; font-weight: 700; }
@@ -205,6 +230,8 @@ body {
 .concern-explain { font-size: 13px; line-height: 1.48; color: var(--text); margin-top: 5px; }
 .concern-meta { margin-top: 7px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .concern-basis { font-size: 11px; color: var(--muted); font-style: italic; }
+.concern-origin { font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--accent);
+  background: var(--bubble); border-radius: 999px; padding: 1px 8px; }
 
 /* ── evidence the red-teamer pulled (dig tools) ────────────────── */
 .ev-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }

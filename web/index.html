@@ -21,20 +21,26 @@
         <button class="nav-item" data-page="qa">Q&amp;A</button>
       </nav>
     </aside>
+    <div class="resizer" id="sidebarResizer" data-target="sidebar" title="Drag to resize"></div>
 
-    <!-- ── report panel: a thin rail beside the sidebar that expands to the right ── -->
+    <!-- ── report panel: a thin rail beside the sidebar that expands to fill the left half ── -->
     <aside class="report-panel" id="reportPanel">
       <button class="report-rail" id="reportRail" title="Open the red-team report">
-        <span class="rail-label">⚑ Report</span>
+        <span class="rail-label">Report</span><span class="rail-arrow">›</span>
       </button>
       <div class="report-open">
-        <div class="report-head">
+        <div class="report-scroll">
+          <div class="report-title">Red Team Report</div>
           <div class="report-claim" id="reportClaim"></div>
-          <button class="report-close" id="reportClose" aria-label="Collapse report" title="Collapse">‹</button>
+          <div class="report-summary" id="reportSummary"></div>
+          <div class="report-body" id="reportBody"></div>
         </div>
-        <div class="report-body" id="reportBody"></div>
+        <button class="report-closebar" id="reportClose" aria-label="Collapse report" title="Collapse">
+          <span class="closebar-arrow">‹</span><span class="closebar-label">Report</span>
+        </button>
       </div>
     </aside>
+    <div class="resizer report-resizer" id="reportResizer" data-target="report" title="Drag to resize"></div>
 
     <!-- ── main ────────────────────────────────────────────────── -->
     <main class="main">
