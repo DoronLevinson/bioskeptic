@@ -22,9 +22,19 @@
       </nav>
     </aside>
 
+    <!-- ── report panel (expands when a red-team report arrives) ── -->
+    <aside class="report-panel" id="reportPanel" hidden>
+      <div class="report-head">
+        <div class="report-claim" id="reportClaim"></div>
+        <button class="report-close" id="reportClose" aria-label="Close report">×</button>
+      </div>
+      <div class="report-body" id="reportBody"></div>
+    </aside>
+
     <!-- ── main ────────────────────────────────────────────────── -->
     <main class="main">
       <div class="toolbar">
+        <button id="reportToggle" class="toggle" title="Show the red-team report" hidden>▤ Report</button>
         <button id="compareToggle" class="toggle" title="Comparison mode">⇄ Compare</button>
         <button id="themeToggle" class="toggle icon" title="Toggle dark mode">☾</button>
       </div>
