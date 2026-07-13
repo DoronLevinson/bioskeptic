@@ -1,50 +1,62 @@
-# BioSkeptic — an AI red team for drug-discovery claims
+# BioSkeptic
 
-BioSkeptic pressure-tests **drug → target → disease** claims by running them against a panel of
-**grounded refuting mechanisms** — checks backed by real biomedical databases (Open Targets genetics,
-GTEx, the Human Protein Atlas, IMPC mouse knockouts, ClinicalTrials.gov, PubMed, the FDA label). Every
-concern it raises comes with a **source link you can open and check**, so it's an *auditable* second
-opinion, not a black box.
+BioSkeptic gives an AI better tools to check a drug–target–disease idea against real biological evidence —
+so its answer is something you can **verify**, not just something that sounds right.
 
-It ships in three forms:
+<!-- demo video goes here -->
 
-| Form | What it is | Who it's for |
-|---|---|---|
-| **Chat / web app** (`web/`) | the interactive red-team assistant | end users |
-| **MCP server** (`mcp_server/`) | the same tools exposed to any AI agent | Claude Desktop / Code, other MCP clients |
-| **`bioskeptic.refine`** (Python library) | batch data/KG refinement | data & ML pipelines |
+## Introduction
 
-Both the MCP server and the library are **free and local** — they run on your machine and use **your own**
-`ANTHROPIC_API_KEY` (a few of the checks call an LLM; the rest are free public-database lookups).
+Most drugs fail, and they fail for all kinds of reasons — they don't work, they aren't safe enough, they
+aren't worth the cost. Much of that you only find out late, in the clinic. But one thing you *can*
+sanity-check early is whether a drug–target–disease idea even holds up against what we already know. People
+increasingly put that question to an AI, which is reasonable — but a language model answers from memory, and
+it sounds just as confident whether or not there's real evidence behind what it says. You get something
+plausible, with no easy way to check it.
 
----
+BioSkeptic gives the model better tools for that one question. It checks the idea against real biological
+data — is the target active where the disease is, do the genetics line up, has anything like it been tried —
+and returns the concerns it finds, **each with a link to its source**. It doesn't tell you yes or no; it just
+makes the answer checkable. The same tools work at scale, too: flagging the shaky links in a knowledge graph
+or dataset before a model is trained on them.
 
-## Install
+It's one part of the picture — not a full assessment of a drug program — but it's a part you can check early,
+and it makes consulting an AI on these ideas more reliable and easier to verify.
+
+## How it works
+
+BioSkeptic never hands down a verdict. Every check is a **suggestive, cited flag** with a documented
+reliability, and the agent weighs them like a red-team lawyer — raising concerns, not passing judgement.
+
+- **Data sources.** Every check is grounded in ~21 public biomedical databases — Open Targets (human
+  genetics, associations, mouse phenotypes), GTEx and the Human Protein Atlas (expression), ChEMBL, ClinGen,
+  EpiGraphDB, ClinicalTrials.gov, PubMed, and the FDA label. Each datapoint is one grounded fact with a link
+  a human can open. → [`docs/data_sources.md`](bioskeptic/docs/data_sources.md)
+- **Refuting mechanisms.** A set of specific, falsifiable questions drawn from the target-validation
+  literature: *is the target expressed in the affected tissue? do human genetics point the right therapeutic
+  direction? does deleting the gene in mice do anything relevant? is the link only a paper co-mention?* We
+  catalogued ~18; **8 are implemented so far**, each with its own known blind spots.
+  → [`docs/refute_mechanisms.md`](bioskeptic/docs/refute_mechanisms.md)
+- **Benchmark & performance.** To know which mechanisms to trust, we built an objective benchmark from
+  **approved** drug–target–disease indications (true), gene–disease links **refuted or disputed in ClinGen**
+  (hard negatives), and **disease-swaps** (easy negatives), then measured each mechanism's precision and
+  recall. Those numbers feed into how the agent weighs each flag. → [`bioskeptic/benchmarks/`](bioskeptic/benchmarks)
+
+## Use it
+
+Both the MCP server and the library are **free and local** — they run on your machine with your **own**
+`ANTHROPIC_API_KEY` (a few checks call an LLM; the rest are free public-database lookups).
 
 ```bash
 git clone https://github.com/DoronLevinson/bioskeptic && cd bioskeptic
 pip install -e .            # or:  uv sync
-export ANTHROPIC_API_KEY=sk-ant-...   # used by the LLM-backed mechanisms
+export ANTHROPIC_API_KEY=sk-ant-...
 ```
 
----
-
-## 1. MCP server — give any agent BioSkeptic's tools
-
-The MCP server exposes BioSkeptic's engine as **tools an AI agent can call**. It runs over **stdio** by
-default — the client launches it locally and talks over stdin/stdout, so it's free and private.
-
-### The tools it provides
-- **Resolvers** — `resolve_target`, `resolve_drug`, `resolve_disease` (+ `suggest_*`): turn a messy name
-  or a knowledge-graph id (`Gene::7157`, `Disease::MESH:…`) into a grounded ID passport.
-- **`drug_targets`** — a drug's direct mechanism-of-action target(s) from Open Targets/ChEMBL.
-- **`build_report`** — the core: runs *every* refuting mechanism on a resolved drug–target–disease claim
-  and returns a structured report (flagged concerns, checks that passed, precision, cited links).
-- **Dig tools** — `search_trials` (ClinicalTrials.gov), `search_pubmed` (PubMed), `fda_label` (FDA label):
-  chase a concern down to primary evidence, keyed on the ids you already resolved.
-
-### Add it to Claude Desktop
-Add this to your `claude_desktop_config.json` (Settings → Developer → Edit Config), then restart Claude:
+### MCP server — give any agent BioSkeptic's tools
+The engine is exposed as tools an AI agent can call (`resolve_target/drug/disease`, `build_report`,
+`search_trials`, `search_pubmed`, `fda_label`, `drug_targets`). It runs over **stdio**, so the client
+launches it locally. Add it to `claude_desktop_config.json` and restart Claude:
 
 ```json
 {
@@ -59,60 +71,26 @@ Add this to your `claude_desktop_config.json` (Settings → Developer → Edit C
 }
 ```
 
-Now ask Claude something like *"use bioskeptic to red-team: evolocumab inhibits PCSK9 to treat high LDL
-cholesterol"* and it will call the tools and hand you a cited report.
+Then ask it something like *"use bioskeptic to red-team: evolocumab inhibits PCSK9 to treat high LDL."*
 
-*(To run it as a hosted HTTP endpoint instead of stdio, set `MCP_TRANSPORT=streamable-http`.)*
+### Python library — `bioskeptic.refine`
+Runs the same panel over the target–disease relations in a dataset or knowledge graph and flags the
+weakly-grounded ones, each with a cited reason.
 
----
-
-## 2. `bioskeptic.refine` — batch data & KG refinement
-
-The datasets and knowledge graphs behind drug discovery are **noisy**: many target–disease links are just
-text-mined co-mentions with no real biology behind them. `bioskeptic.refine` runs the refuting panel over
-those relations and **flags the weakly-grounded ones**, each with a cited reason — so you can clean a
-dataset, refine a KG, or train repurposing models on relations that actually hold up.
-
-### One relation
 ```python
-from bioskeptic.refine import audit_pair
+from bioskeptic.refine import audit_pair, audit_dataframe
 
-r = audit_pair(target="TP53", disease="type 2 diabetes")   # names, ids, or DRKG ids all work
-r.flagged          # True
-r.flag_mechanisms  # ['text_mining_only', 'mouse_ko_normal']
-print(r.details)   # human-readable reasons + source links
-r.findings         # structured: [{mechanism, title, reason, sources: [...]}, ...]
+r = audit_pair(target="TP53", disease="type 2 diabetes")
+r.flagged        # True
+print(r.details) # reasons + source links
+
+out = audit_dataframe(df)   # df with 'target' and 'disease' cols → adds flagged / flags / findings columns
 ```
 
-### A whole dataframe
-```python
-import pandas as pd
-from bioskeptic.refine import audit_dataframe
+A saved 100-edge run on DRKG lives at
+[`bioskeptic/refine/sample_drkg_100.csv`](bioskeptic/refine/sample_drkg_100.csv).
 
-df = pd.DataFrame({"target": ["TP53", "PCSK9"], "disease": ["type 2 diabetes", "high LDL cholesterol"]})
-out = audit_dataframe(df)     # runs concurrently; adds columns:
-#   target_name, disease_name, resolved, flagged, flags, flag_mechanisms, findings
-out[out["flags"] >= 2]        # keep only corroborated flags
-```
-
-### Sample & audit a real knowledge graph (DRKG)
-```python
-from bioskeptic.refine import sample_target_disease, audit_dataframe
-
-df, total = sample_target_disease(n=100)   # downloads DRKG once, samples 100 Gene–Disease edges
-out = audit_dataframe(df)
-print(f"flagged {out['flagged'].sum()} of {len(out)}")
-```
-
-A saved 100-edge run lives at [`bioskeptic/refine/sample_drkg_100.csv`](bioskeptic/refine/sample_drkg_100.csv).
-On that sample, the strict "≥3 mechanisms" tier flags 16 relations, **13 of them genuine (~81% precision)**.
-
-**Cost note:** three of the eight mechanisms call an LLM (a few cents per audit on your key); the other
-five and all resolution are free public-database lookups.
-
----
-
-## Web app
+### Web app
 ```bash
 uvicorn web.app:app --reload    # then open http://127.0.0.1:8000
 ```

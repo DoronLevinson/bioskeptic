@@ -22,6 +22,7 @@
         <button class="nav-item" data-page="datasets">Data Refinement</button>
         <button class="nav-item" data-page="qa">Q&amp;A</button>
       </nav>
+      <div class="side-footer">Doron Levinson · <a href="https://github.com/DoronLevinson/bioskeptic" target="_blank" rel="noopener">GitHub ↗</a></div>
     </aside>
     <div class="resizer" id="sidebarResizer" data-target="sidebar" title="Drag to resize"></div>
 
@@ -66,7 +67,7 @@
       <section class="page chat empty" id="page-home">
         <div class="greeting">
           <h1 class="hero-title">BioSkeptic</h1>
-          <p class="hero-sub">AI <span class="red-team">Red Team</span> for Drug Discovery</p>
+          <p class="hero-sub">Drug-discovery <span class="red-team">red team</span> · grounded, cited, verifiable</p>
         </div>
         <div class="messages"><div class="thread" id="log"></div></div>
         <div class="composer-area" id="composerArea">
@@ -83,7 +84,7 @@
       <section class="page comparison" id="comparison" hidden>
         <div class="cmp-cols">
           <div class="cmp-col cmp-col-bio">
-            <div class="cmp-hero"><span class="cmp-name">BioSkeptic</span><span class="cmp-sub">AI <span class="red-team">Red Team</span> · grounded</span></div>
+            <div class="cmp-hero"><span class="cmp-name">BioSkeptic</span><span class="cmp-sub">grounded, cited, verifiable</span></div>
             <div class="cmp-log" id="cmpBioLog"></div>
             <!-- report panel: slides in over the BioSkeptic column from the side -->
             <aside class="cmp-drawer" id="cmpDrawer">
@@ -111,7 +112,77 @@
       </section>
 
       <!-- placeholder pages -->
-      <section class="page placeholder" id="page-about" hidden><h2>About</h2><p>Coming soon.</p></section>
+      <section class="page doc" id="page-about" hidden>
+        <div class="doc-body">
+          <h1>About BioSkeptic</h1>
+          <p class="doc-lead">BioSkeptic gives an AI better tools to check a drug–target–disease idea against real
+            biological evidence — so its answer is something you can verify, not just something that sounds right.</p>
+
+          <h3>The problem</h3>
+          <p>Most drugs fail, and they fail for all kinds of reasons — they don't work, they aren't safe enough, they
+            aren't worth the cost. Much of that you only find out late, in the clinic. But some of it comes down to a
+            simpler question you can ask far earlier: does this drug–target–disease idea even hold up against what we
+            already know?</p>
+          <p>More and more, people put that question to an AI. That's reasonable — but a language model answers from
+            memory, and it sounds just as confident whether or not there's real evidence behind what it says. You get
+            something plausible, with no easy way to check it.</p>
+
+          <h3>What BioSkeptic does</h3>
+          <p>BioSkeptic gives the model better tools for that one question. It checks the idea against real biological
+            data — is the target active where the disease is, do the genetics line up, has anything like it been tried —
+            and returns the concerns it finds, each with a link to its source. It doesn't tell you yes or no; it just
+            makes the answer checkable.</p>
+          <p>The same tools work at scale, too: flagging the shaky links in a knowledge graph or dataset before a model
+            is trained on them.</p>
+
+          <h2>How it works</h2>
+          <p>BioSkeptic never hands down a verdict. Every mechanism is a <strong>suggestive, cited flag</strong> with a
+            documented reliability, and the agent weighs them like a red-team lawyer — raising concerns, not passing
+            judgement. Here's what's under the hood.</p>
+
+          <h3>Data sources</h3>
+          <p>Every check is grounded in a curated set of <strong>~21 public biomedical databases</strong> — Open Targets
+            (human genetics, target–disease associations, mouse phenotypes), <strong>GTEx</strong> and the <strong>Human
+            Protein Atlas</strong> (bulk and single-cell expression), ChEMBL, ClinGen, EpiGraphDB, ClinicalTrials.gov,
+            PubMed, and the FDA label. Each datapoint is one grounded fact with a link a human can open.
+            <a href="https://github.com/DoronLevinson/bioskeptic/blob/main/bioskeptic/docs/data_sources.md" target="_blank" rel="noopener">Full list ↗</a></p>
+
+          <h3>Refuting mechanisms</h3>
+          <p>The core is a set of refuting mechanisms drawn from the <strong>target-validation literature</strong> — each
+            a specific, falsifiable question backed by data: <em>is the target expressed in the affected tissue? do human
+            genetics point the right therapeutic direction? does deleting the gene in mice do anything relevant? is the
+            link only a paper co-mention?</em> We catalogued ~18; <strong>8 are implemented here so far</strong>. Each one
+            carries its own known blind spots, so the agent never over-trusts a single flag.
+            <a href="https://github.com/DoronLevinson/bioskeptic/blob/main/bioskeptic/docs/refute_mechanisms.md" target="_blank" rel="noopener">Full spec ↗</a></p>
+
+          <h3>Benchmark &amp; performance</h3>
+          <p>To know which mechanisms to trust, we built an <strong>objective benchmark</strong> from three kinds of
+            example: real <strong>approved</strong> drug–target–disease indications (from ChEMBL and Open Targets) as the
+            true cases; gene–disease links that experts curated as <strong>refuted or disputed in ClinGen</strong> as hard
+            negatives; and <strong>disease-swaps</strong> (a true pair with its disease replaced by a random unrelated one)
+            as easy negatives. We then measured each mechanism's <strong>precision</strong> (how often a flag is right)
+            and <strong>recall</strong> (how many wrong claims it catches).</p>
+          <p>Five of the eight get a graded precision; the genetics-based checks fire too rarely — and dosage-sensitivity
+            is disease-independent — to score on this set, though they're precise when they do fire.</p>
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th>Mechanism</th><th>Precision</th><th>Recall</th><th>Note</th></tr></thead>
+              <tbody>
+                <tr><td>Real evidence vs. text-mining</td><td class="num">1.00</td><td class="num">—</td><td>never false-alarmed; rare</td></tr>
+                <tr><td>Expressed in the affected tissue</td><td class="num">0.75</td><td class="num">0.41</td><td></td></tr>
+                <tr><td>Mouse-knockout phenotype</td><td class="num">0.70</td><td class="num">0.66</td><td></td></tr>
+                <tr><td>Present in the disease's driver cell</td><td class="num">0.66</td><td class="num">0.76</td><td>high-recall, noisier</td></tr>
+                <tr><td>Causal gene at the locus</td><td class="num">0.50</td><td class="num">—</td><td>rare</td></tr>
+                <tr><td>Genetic direction of effect</td><td class="num">—</td><td class="num">—</td><td>rare; precise when it fires</td></tr>
+                <tr><td>Causal effect (genetic MR)</td><td class="num">—</td><td class="num">—</td><td>rare; reliable</td></tr>
+                <tr><td>Dosage sensitivity</td><td class="num">—</td><td class="num">—</td><td>disease-independent</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>Those numbers feed directly into how the agent weighs each flag — and they're shown on every card in the
+            report. <a href="https://github.com/DoronLevinson/bioskeptic/tree/main/bioskeptic/benchmarks" target="_blank" rel="noopener">Benchmark code ↗</a></p>
+        </div>
+      </section>
       <section class="page doc" id="page-api" hidden>
         <div class="doc-body">
           <h1>MCP &amp; Python Library</h1>
