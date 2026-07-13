@@ -1,0 +1,284 @@
+{
+  "prompt": "Red-team this: an activator of C1orf116 for high LDL cholesterol",
+  "bioskeptic": {
+    "pin_reply": "C1orf116 is unambiguous \u2014 one gene, ENSG00000182795. For the disease, though, none of the hits is cleanly \"high LDL cholesterol.\" The closest concepts are:\n\n1. **Hypercholesterolemia** \u2014 increased blood cholesterol (the common clinical condition) \u2014 [HP_0003124](https://platform.opentargets.org/disease/HP_0003124)\n2. **LDL cholesterol change measurement** \u2014 a quantitative LDL trait, e.g. response to treatment \u2014 [EFO_0007804](https://platform.opentargets.org/disease/EFO_0007804)\n\nMy instinct is **hypercholesterolemia** \u2014 that's the disease sense of \"high LDL cholesterol,\" whereas the other is a measurement trait. Want me to go with that, or did you mean the LDL measurement/GWAS trait specifically?",
+    "statuses": [
+      "suggest_diseases",
+      "resolve_target",
+      "resolve_disease",
+      "build_report",
+      "search_pubmed",
+      "search_pubmed",
+      "add_concern",
+      "add_concern",
+      "add_concern",
+      "add_concern"
+    ],
+    "reply": "Here's the red-team recap \u2014 the concerns worth keeping on the page, none of which I judged to be false alarms:\n\n- The two I weigh most heavily are the **liver-expression gap** and the **total absence of any lipid link**. They reinforce each other: the target isn't made in the hepatocytes that set LDL, *and* there's no published or genetic evidence \u2014 zero papers, all causal checks not-applicable \u2014 putting this gene anywhere near cholesterol biology. Together they mean there's neither a place for the drug to act nor a reason to think acting there would matter.\n- Underneath that sits the **missing mechanistic rationale**: \"activate\" needs a functional handle on lipoproteins, and none is described for this gene (whose real identity, SARG, is androgen-regulated biology in prostate/adipose).\n- The **mouse knockout** adds a mild, same-direction hint \u2014 no metabolic phenotype on deletion \u2014 though I've down-weighted it since a knockout tests loss while your claim is a gain.\n\nThe one caveat I'd hand a defender: expression and KO checks can miss a target that acts through a rare cell type or a non-obvious route \u2014 but here that argument has to carry the *complete* absence of literature and genetics too, which is a lot to ask of it. The liver-absence concern is the one I'd want answered first.",
+    "report": {
+      "claim": {
+        "drug": null,
+        "target": "C1orf116",
+        "disease": "Hypercholesterolemia",
+        "direction": "activate"
+      },
+      "flagged": [
+        {
+          "name": "not_expressed_in_tissue",
+          "title": "Expressed in the affected tissue",
+          "what_it_checks": "A drug can only act where its target is actually present. This checks whether the target is switched on in the tissue the disease affects. If the target isn't made there, there is nothing in that tissue for the drug to act on.",
+          "finding": "C1orf116 is not expressed in the tissue affected by Hypercholesterolemia (Liver 0.22 TPM, Artery_Aorta 0.09 TPM, Artery_Coronary 0.08 TPM, Artery_Tibial 0.09 TPM; below 1 TPM), nor in its driver cell type \u2014 its RNA is highest in Esophagus_Mucosa (126), Skin_Sun_Exposed_Lower_leg (58), Lung (55). A real absence, but weigh it against the drug's actual site of action (a drug can act on a different organ, e.g. a diuretic on the kidney).",
+          "sources": [
+            {
+              "label": "GTEx",
+              "url": "https://gtexportal.org/home/gene/C1orf116"
+            },
+            {
+              "label": "Human Protein Atlas",
+              "url": "https://www.proteinatlas.org/ENSG00000182795/single+cell"
+            }
+          ],
+          "reliability": "Two common false alarms: (1) the drug deliberately acts on a DIFFERENT organ than the diseased one (for example, a water pill acts on the kidney to treat the heart); (2) the target's working cells are a tiny fraction of the tissue (like specific neurons), so a bulk measurement reads near-zero even though the target is there.",
+          "blind_spots": "FP classes: (1) site-of-action != disease-organ (loop diuretics act on SLC12A1/NKCC2 in kidney medulla to treat cardiac/hepatic edema); (2) cell-type-diluted targets (SLC6A4/SERT, OPRK1) read <1 TPM in bulk; (3) inducible enzymes (PTGS2/COX-2). The single-cell rescue only tames class 2. Bulk-only precision ceiling ~0.67.",
+          "benchmark": "On the test set it catches about 41% of wrong claims and false-alarms on about 17% of real drugs \u2014 right roughly 3 out of 4 times it fires.",
+          "precision": 0.75,
+          "recall": 0.41
+        },
+        {
+          "name": "absent_from_driver_cell",
+          "title": "Present in the disease's driver cell",
+          "what_it_checks": "A tissue is a mixture of many cell types, and usually one specific cell type drives the disease. Even if the target seems present in the tissue as a whole, this checks whether it is present in that particular disease-driving cell. If not, the drug can't act where it actually matters.",
+          "finding": "C1orf116 is not expressed in the cell type that drives Hypercholesterolemia \u2014 its single-cell expression is confined to unrelated cell types (highest in Esophageal apical cells (749), Apical squamous epithelial cells (749), Ocular epithelial cells (380)) \u2014 so even where the disease acts, the driving cells lack the target for the drug to engage.",
+          "sources": [
+            {
+              "label": "Human Protein Atlas",
+              "url": "https://www.proteinatlas.org/ENSG00000182795/single+cell"
+            }
+          ],
+          "reliability": "High-recall but noisy \u2014 same trap as the tissue check: 'absent from the driving cell' can't tell apart a target that works through a different route or a rare cell from one that's truly irrelevant; and the single-cell data doesn't resolve every cell type well.",
+          "blind_spots": "Same expression confound as #7; HPA's single-cell atlas has limited resolution for some driver cells (e.g. raphe serotonergic neurons for depression). Precision ~0.66, recall ~0.76 \u2014 the high-recall dial of the expression axis.",
+          "benchmark": "Catches the most wrong claims on the test set (about 78%) and is the best at catching disproven genetic links \u2014 but it false-alarms on about 56% of real drugs, so it is right only about two-thirds of the times it fires.",
+          "precision": 0.66,
+          "recall": 0.76
+        },
+        {
+          "name": "mouse_ko_normal",
+          "title": "Mouse-knockout phenotype",
+          "what_it_checks": "If a target is truly needed for a disease, then completely removing that gene in an animal should cause a related problem. This checks whether deleting the gene in mice produces any effect relevant to the disease. If the mouse is essentially fine, the target may not be required after all.",
+          "finding": "The mouse knockout of C1orf116 produces no phenotype relevant to Hypercholesterolemia \u2014 its 6 knockout phenotype(s) are in unrelated systems (e.g. small kidney, abnormal auditory brainstem response, abnormal retina morphology, cataract) \u2014 so removing the target does not produce the expected disease effect, suggesting it is not required for the disease.",
+          "sources": [
+            {
+              "label": "Open Targets",
+              "url": "https://platform.opentargets.org/target/ENSG00000182795?tab=mouse_phenotypes"
+            }
+          ],
+          "reliability": "Noisy because a mouse is not a human: the human disease may not show up in mice, a backup gene may cover for the missing one, or a drug may work differently than fully deleting the gene.",
+          "blind_spots": "~90% of FPs are irreducible mouse!=human (viable KO whose adult phenotype doesn't match the human disease). OT aggregates phenotypes across alleles, so a lethality label can co-occur with rich adult data. Paralog compensation and drug!=full-KO also cause FPs.",
+          "benchmark": "On the test set it catches about 66% of wrong claims and false-alarms on about 35% of real drugs \u2014 right roughly 7 out of 10 times it fires.",
+          "precision": 0.7,
+          "recall": 0.66
+        }
+      ],
+      "clean": [],
+      "not_applicable": [
+        {
+          "name": "direction_of_effect",
+          "title": "Genetic direction of effect"
+        },
+        {
+          "name": "not_causal_gene",
+          "title": "Causal gene at the locus"
+        },
+        {
+          "name": "cis_mr_null",
+          "title": "Causal effect (genetic experiment)"
+        },
+        {
+          "name": "text_mining_only",
+          "title": "Real evidence vs. text-mining"
+        },
+        {
+          "name": "haploinsufficient_inhibited",
+          "title": "Dosage sensitivity"
+        }
+      ]
+    },
+    "concerns": [
+      {
+        "title": "Target not expressed in the liver (the LDL-controlling organ)",
+        "explanation": "LDL cholesterol is governed by hepatocytes (LDLR, PCSK9, HMGCR). C1orf116 is essentially absent from liver (0.22 TPM) and arteries (<0.1 TPM); its RNA is highest in esophagus, skin, and lung. There's no site-of-action escape hatch here \u2014 cholesterol handling is a liver function and the target isn't in the liver.",
+        "severity": "high",
+        "origin": "mechanism",
+        "basis": "not_expressed_in_tissue (precision 0.75) + absent_from_driver_cell (precision 0.66), corroborating",
+        "likely_false_alarm": false,
+        "sources": [
+          "https://gtexportal.org/home/gene/C1orf116",
+          "https://www.proteinatlas.org/ENSG00000182795/single+cell"
+        ]
+      },
+      {
+        "title": "No published link between C1orf116 and lipid/cholesterol biology",
+        "explanation": "A targeted PubMed search (C1orf116 AND cholesterol/lipid/LDL) returns zero papers, and the panel's genetic-causal checks (direction of effect, causal gene at locus, Mendelian randomization) were all not-applicable \u2014 i.e. no human genetic anchor. The gene (alias SARG, an androgen-regulated gene) has no described role in hepatic cholesterol metabolism.",
+        "severity": "high",
+        "origin": "literature",
+        "basis": "PubMed: 0 hits for target+lipid; genetic checks N/A in report",
+        "likely_false_alarm": false,
+        "sources": [
+          "https://pubmed.ncbi.nlm.nih.gov/?term=C1orf116+AND+cholesterol"
+        ]
+      },
+      {
+        "title": "No mechanistic rationale for how \"activating\" the target would lower LDL",
+        "explanation": "The claim specifies an activator, but there is no described biochemical function (receptor/enzyme/transporter) linking C1orf116 to lipoprotein handling \u2014 so there's no functional handle to push on and no predicted direction of effect on LDL. Reasoning-based; no database source.",
+        "severity": "medium",
+        "origin": "reasoning",
+        "basis": "reasoning: no known MoA connecting target to LDL",
+        "likely_false_alarm": false,
+        "sources": []
+      },
+      {
+        "title": "Mouse knockout shows no lipid-relevant phenotype",
+        "explanation": "Deleting C1orf116 in mice yields phenotypes in unrelated systems (small kidney, abnormal auditory brainstem response, retinal/cataract changes) \u2014 nothing metabolic. Caveat: KO tests loss-of-function while the claim is an activator (gain), so it's an imperfect direction match; but the complete absence of any lipid ripple still argues against a metabolic role.",
+        "severity": "low",
+        "origin": "mechanism",
+        "basis": "mouse_ko_normal (precision 0.70); direction mismatch (KO vs activator)",
+        "likely_false_alarm": false,
+        "sources": [
+          "https://platform.opentargets.org/target/ENSG00000182795?tab=mouse_phenotypes"
+        ]
+      }
+    ],
+    "evidence": [
+      {
+        "tool": "search_pubmed",
+        "data": {
+          "query": "C1orf116 OR SARG",
+          "total_count": 524,
+          "papers": [
+            {
+              "pmid": "42393074",
+              "title": "Siderophore production by the lichen fungus Xanthoria parietina supports its algal symbiont",
+              "year": "2026",
+              "journal": "Nature communications",
+              "first_author": "Happacher I",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/42393074/"
+            },
+            {
+              "pmid": "42378668",
+              "title": "A hickory lysophosphatidic acid acyltransferase confers tolerance to multiple abiotic stresses via membrane lipid modulation",
+              "year": "2026",
+              "journal": "Plant physiology",
+              "first_author": "Zheng S",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/42378668/"
+            },
+            {
+              "pmid": "42337623",
+              "title": "Ex vivo assay for organ-specific cancer cell invasion",
+              "year": "2026",
+              "journal": "Journal of biological engineering",
+              "first_author": "Tyckaert F",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/42337623/"
+            },
+            {
+              "pmid": "42336755",
+              "title": "Retraction notice to \"Effect of bone marrow mesenchymal stem cells-derived exosomes on diabetes-induced retinal injury: Implication of Wnt/ b-catenin signaling pathway\" [Biomedicine & Pharmacotherapy 154 (2022) 113554]",
+              "year": "2026",
+              "journal": "Biomedicine & pharmacotherapy = Biomedecine & pharmacotherapie",
+              "first_author": "Ebrahim N",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/42336755/"
+            },
+            {
+              "pmid": "42215254",
+              "title": "Reducing tobacco supplier profits and pricing power: Modelling the impact of a tobacco price cap and tax increase on socioeconomic inequalities in England",
+              "year": "2026",
+              "journal": "Social science & medicine (1982)",
+              "first_author": "Gillespie D",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/42215254/"
+            },
+            {
+              "pmid": "42154400",
+              "title": "Design, synthesis, anticancer estimation, and computational studies of novel benzochromenoimidazopyrimidines as CDK-2 inhibitors and apoptosis stimulators",
+              "year": "2026",
+              "journal": "Molecular diversity",
+              "first_author": "Abdulrahman FG",
+              "url": "https://pubmed.ncbi.nlm.nih.gov/42154400/"
+            }
+          ]
+        }
+      },
+      {
+        "tool": "search_pubmed",
+        "data": {
+          "query": "C1orf116 AND (cholesterol OR lipid OR LDL)",
+          "total_count": 0,
+          "papers": []
+        }
+      }
+    ],
+    "sources": [
+      {
+        "label": "GTEx",
+        "url": "https://gtexportal.org/home/gene/C1orf116"
+      },
+      {
+        "label": "Human Protein Atlas",
+        "url": "https://www.proteinatlas.org/ENSG00000182795/single+cell"
+      },
+      {
+        "label": "Open Targets",
+        "url": "https://platform.opentargets.org/target/ENSG00000182795?tab=mouse_phenotypes"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/?term=C1orf116+AND+cholesterol"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/42393074/"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/42378668/"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/42337623/"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/42336755/"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/42215254/"
+      },
+      {
+        "label": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/42154400/"
+      }
+    ]
+  },
+  "claude": {
+    "reply": "## Where this falls apart\n\n**1. There is no genetic anchor, and that's disqualifying.** LDL is the most heavily GWAS'd trait in existence; C1orf116 does not show up in it. Its formal annotations describe an androgen-regulated ORF mapped to 1q32 with an androgen response element in intron 1, cloned from LNCaP cells, with disease links to prostate/lymph-node carcinoma and Bardet-Biedl 16 \u2014 not lipids. **[grounded: OMIM 611680, GeneCards]** Absent a human allelic series, you have no direction of effect: nothing says more C1orf116 means less LDL. **[reasoning]**\n\n**2. Wrong tissue for the disease.** Plasma LDL is set almost entirely by hepatocyte LDLR flux. C1orf116/SARG is a prostate-enriched, androgen-inducible cytoplasmic protein studied as an epithelial/EMT gene. **[grounded: Proteintech/HPA; AACR Abstract 853]** A liver-relevant mechanism has to be invented from scratch, and a systemic activator will hit the tissues where it's actually abundant. **[reasoning]**\n\n**3. \"Activator\" is doing enormous work.** It's a ~601-aa protein of largely unknown function with two splice isoforms **[grounded: Proteintech]**, no enzymatic activity, no described ligand pocket, no assayable activity state. You cannot screen for agonism of a protein whose functional readout doesn't exist. This is really a stabilizer/expression program (glue, ASO, CRISPRa) wearing a small-molecule costume. **[reasoning]**\n\n**4. Androgen biology poisons the well.** Anything that raises an AR-driven, EMT-implicated gene proposed as a driver of epithelial phenotype in cancer carries proliferative risk in prostate epithelium, plus sex-dimorphic PD. **[grounded: AACR Abstract 853 + reasoning]**\n\n**5. The efficacy bar is inhuman.** Generic statins, ezetimibe, PCSK9 mAbs, inclisiran, bempedoic acid, and oral PCSK9 agents already occupy the space. A first-in-class with an unknown mechanism needs either large incremental LDL lowering on top of maximal therapy or a population the incumbents can't serve. **[reasoning]**\n\n**6. Most likely provenance: a co-expression/ML artifact** \u2014 C1orf116 sits in androgen and epithelial modules that correlate with lipid traits through sex and adiposity confounding. Correlation is being read as causal, in an untested direction. **[reasoning]**",
+    "sources": [
+      {
+        "label": "OMIM",
+        "url": "https://omim.org/entry/611680"
+      },
+      {
+        "label": "GeneCards",
+        "url": "https://www.genecards.org/card/C1orf116"
+      },
+      {
+        "label": "Proteintech",
+        "url": "https://www.ptglab.com/Products/Pictures/pdf/14888-1-AP.pdf"
+      },
+      {
+        "label": "AACR",
+        "url": "https://aacrjournals.org/cancerres/article/77/13_Supplement/853/622044/Abstract-853-C1orf116-a-gene-with-unknown-function"
+      }
+    ],
+    "label": "Claude",
+    "sublabel": "with web search"
+  }
+}

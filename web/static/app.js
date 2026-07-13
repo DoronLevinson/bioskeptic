@@ -23,7 +23,7 @@ let compareMode = false;
 compareToggle.addEventListener("click", () => {
   compareMode = !compareMode;
   compareToggle.classList.toggle("on", compareMode);
-  // (a demo switch for now — wired up when we build the side-by-side comparison)
+  if (compareMode) enterComparison(); else exitComparison();
 });
 
 // ── red-team report panel ─────────────────────────────────────────────────
@@ -220,6 +220,7 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.classList.add("active");
     const page = btn.dataset.page;
     document.querySelectorAll(".page").forEach((s) => { s.hidden = s.id !== "page-" + page; });
+    if (compareMode) { compareMode = false; compareToggle.classList.remove("on"); }  // leaving comparison
   });
 });
 
@@ -419,3 +420,180 @@ form.addEventListener("submit", async (e) => {
     scrollDown();
   }
 });
+
+// ── comparison mode: a cached BioSkeptic-vs-Claude replay ──────────────────
+const comparison = document.getElementById("comparison");
+const cmpBioLog = document.getElementById("cmpBioLog");
+const cmpClaudeLog = document.getElementById("cmpClaudeLog");
+const cmpForm = document.getElementById("cmpForm");
+const cmpInput = document.getElementById("cmpInput");
+const cmpSend = document.getElementById("cmpSend");
+const cmpDrawer = document.getElementById("cmpDrawer");
+const cmpDrawerBody = document.getElementById("cmpDrawerBody");
+const cmpDrawerHandle = document.getElementById("cmpDrawerHandle");
+const cmpRulesToggle = document.getElementById("cmpRulesToggle");
+const cmpRules = document.getElementById("cmpRules");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let CMP = null;   // the cached recording (loaded once)
+
+// grey "additional rules" expander under the demo prompt
+cmpRulesToggle.addEventListener("click", () => { cmpRules.hidden = !cmpRules.hidden; });
+
+function enterComparison() {
+  document.querySelectorAll(".page").forEach((s) => { s.hidden = true; });
+  comparison.hidden = false;
+  loadComparison();
+}
+function exitComparison() {
+  cmpDrawer.classList.remove("open");
+  comparison.hidden = true;
+  document.getElementById("page-home").hidden = false;
+}
+
+async function loadComparison() {
+  cmpInput.value = "Red-team this: an activator of ZNF229 for high LDL cholesterol";
+  if (CMP) return;
+  try {
+    CMP = await (await fetch("/static/comparison.json")).json();
+    cmpInput.value = CMP.prompt || cmpInput.value;
+    if (CMP.claude && CMP.claude.label) document.getElementById("cmpClaudeName").textContent = CMP.claude.label;
+    if (CMP.claude && CMP.claude.sublabel) document.getElementById("cmpClaudeSub").textContent = CMP.claude.sublabel;
+  } catch (e) { console.error("comparison load failed", e); }
+}
+
+// build the whole report at once (drawer) from the cached data, reusing the card renderers
+function buildCmpReportHTML(d, concerns, evidence) {
+  const c = d.claim || {};
+  const dir = c.direction ? `<span class="dir">${esc(c.direction)}s</span> ` : "";
+  const red = d.flagged.length, green = d.clean.length, grey = (d.not_applicable || []).length;
+  const orange = (concerns || []).filter((x) => x.origin && x.origin !== "mechanism").length;
+  const stats = [
+    ["red", red, "possible refuting mechanisms"], ["orange", orange, "concerns from literature & reasoning"],
+    ["green", green, "refuting mechanisms passed"], ["grey", grey, "checks with no data"],
+  ];
+  let html = `<div class="report-claim" style="margin-bottom:6px"><b>${esc(c.drug || "—")}</b> — ${dir}<b>${esc(c.target || "—")}</b> · ${esc(c.disease || "—")}</div>`;
+  html += `<div class="report-summary">` + stats.map(([cls, n, txt]) =>
+    `<div class="sum-stat ${cls}"><span class="sum-num">${n}</span><span class="sum-txt">${esc(txt)}</span></div>`).join("") + `</div>`;
+  if ((concerns || []).length) {
+    const sorted = [...concerns].sort((a, b) => (SEV_ORDER[a.severity] ?? 1) - (SEV_ORDER[b.severity] ?? 1));
+    html += `<h4 class="report-sec">▲ Concerns to weigh</h4><div class="card-grid">` + sorted.map(concernCard).join("") + `</div>`;
+  }
+  html += `<h4 class="report-sec">⚑ Refuting mechanisms flagged (${d.flagged.length})</h4>`;
+  html += `<div class="card-grid">${d.flagged.length ? d.flagged.map((m) => mechCard(m, true)).join("") : `<div class="report-none">Nothing flagged.</div>`}</div>`;
+  html += `<h4 class="report-sec">✓ Refuting mechanisms passed (${d.clean.length})</h4>`;
+  html += `<div class="card-grid">${d.clean.map((m) => mechCard(m, false)).join("")}</div>`;
+  if ((d.not_applicable || []).length) {
+    html += `<h4 class="report-sec">— No data (${d.not_applicable.length})</h4>`;
+    html += `<div class="na-chips">${d.not_applicable.map((m) => `<span class="na-chip">${esc(m.title)}</span>`).join("")}</div>`;
+  }
+  if ((evidence || []).length) {
+    html += `<h4 class="report-sec">🔎 Evidence the red-teamer pulled</h4>`;
+    html += evidence.map((e) => evidenceCard(e.tool, e.data)).join("");
+  }
+  return html;
+}
+function openCmpDrawer() {
+  if (!cmpDrawerBody.innerHTML) {
+    const b = CMP.bioskeptic;
+    cmpDrawerBody.innerHTML = buildCmpReportHTML(b.report, b.concerns, b.evidence);
+  }
+  cmpDrawer.classList.add("open");
+}
+cmpDrawerHandle.addEventListener("click", () => cmpDrawer.classList.remove("open"));  // ‹ closes the panel
+
+// Render Claude's answer with its [grounded: source] / [reasoning] tags turned into colored,
+// hoverable segments — each tag colors the text preceding it (green = grounded, amber = reasoning).
+function renderClaudeTagged(text) {
+  const inline = (t) => esc(t)
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  const TAG = /\[(grounded|reasoning)(?::\s*([^\]]+))?\]/g;
+  const badge = (kind, src) => kind === "grounded"
+    ? `<span class="g-badge g-badge-grounded">grounded${src ? ": " + esc(src) : ""}</span>`
+    : `<span class="g-badge g-badge-reasoning">reasoning</span>`;
+  const tip = (kind, src) => kind === "grounded"
+    ? "Grounded in a source" + (src ? ": " + src : "") : "Claude's own reasoning — no source backs this";
+  let html = "";
+  for (let para of text.split(/\n\n+/)) {
+    para = para.trim();
+    if (!para) continue;
+    if (para.startsWith("## ")) { html += `<h4>${inline(para.slice(3))}</h4>`; continue; }
+    para = para.replace(/\*\*(\[(?:grounded|reasoning)[^\]]*\])\*\*/g, "$1");  // unbold the tags
+    let out = "", last = 0, m; TAG.lastIndex = 0;
+    while ((m = TAG.exec(para))) {
+      const seg = inline(para.slice(last, m.index).trim());
+      const kind = m[1], src = (m[2] || "").trim();
+      // reasoning → red-highlighted span; grounded → plain text + a muted source chip (no green)
+      out += kind === "reasoning"
+        ? `<span class="g-reasoning" title="${esc(tip(kind, src))}">${seg} ${badge(kind, src)}</span> `
+        : `${seg} ${badge(kind, src)} `;
+      last = TAG.lastIndex;
+    }
+    const tail = para.slice(last).trim();
+    if (tail) out += inline(tail);
+    html += `<p>${out}</p>`;
+  }
+  return html;
+}
+
+// a sources strip under an answer: mini chips like the report cards
+function appendSources(bubble, sources, note) {
+  if (!sources || !sources.length) return;
+  const chips = sources.map((s) =>
+    `<a class="src-chip" href="${s.url}" target="_blank" rel="noopener">${esc(s.label)} ↗</a>`).join("");
+  const wrap = document.createElement("div");
+  wrap.className = "cmp-sources";
+  wrap.innerHTML = `<div class="cmp-sources-h"><b>${sources.length} source${sources.length === 1 ? "" : "s"}</b>${note ? " · " + esc(note) : ""}</div>` +
+    `<div class="cmp-sources-chips">${chips}</div>`;
+  bubble.appendChild(wrap);
+}
+
+// play BioSkeptic: status pills → reply → an "open report" button
+async function playBio() {
+  const bubble = document.createElement("div");
+  bubble.className = "msg bot status";
+  cmpBioLog.appendChild(bubble);
+  for (const tool of CMP.bioskeptic.statuses) {
+    bubble.innerHTML = `<span class="pulse">✳</span>${esc(LABELS[tool] || tool.replace(/_/g, " "))}…`;
+    cmpBioLog.scrollTop = cmpBioLog.scrollHeight;
+    await sleep(580);
+  }
+  bubble.className = "msg bot";
+  bubble.innerHTML = renderMarkdown(CMP.bioskeptic.reply);
+  appendSources(bubble, CMP.bioskeptic.sources, "every claim backed by a database");
+  const btn = document.createElement("button");
+  btn.className = "open-report-link";
+  btn.textContent = "⚑ Open the full red-team report →";
+  btn.addEventListener("click", openCmpDrawer);
+  bubble.appendChild(btn);
+  cmpBioLog.scrollTop = cmpBioLog.scrollHeight;
+}
+// play Claude: a short "searching" beat → reply
+async function playClaude() {
+  const bubble = document.createElement("div");
+  bubble.className = "msg bot status";
+  bubble.innerHTML = `<span class="pulse">✳</span>Searching the web…`;
+  cmpClaudeLog.appendChild(bubble);
+  await sleep(Math.max(1600, CMP.bioskeptic.statuses.length * 580 * 0.55));
+  bubble.className = "msg bot";
+  bubble.innerHTML = renderClaudeTagged(CMP.claude.reply);
+  appendSources(bubble, CMP.claude.sources, "web pages it cited");
+  cmpClaudeLog.scrollTop = cmpClaudeLog.scrollHeight;
+}
+
+async function runComparison() {
+  if (!CMP) { await loadComparison(); if (!CMP) return; }
+  cmpDrawer.classList.remove("open");
+  cmpBioLog.innerHTML = ""; cmpClaudeLog.innerHTML = "";
+  cmpDrawerBody.innerHTML = "";
+  // the same fixed prompt appears as a user turn in both chats
+  for (const log of [cmpBioLog, cmpClaudeLog]) {
+    const u = document.createElement("div");
+    u.className = "msg user"; u.textContent = CMP.prompt;
+    log.appendChild(u);
+  }
+  cmpSend.disabled = true;
+  await Promise.all([playBio(), playClaude()]);
+  cmpSend.disabled = false;
+}
+cmpForm.addEventListener("submit", (e) => { e.preventDefault(); runComparison(); });
