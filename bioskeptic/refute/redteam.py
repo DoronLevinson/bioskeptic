@@ -153,6 +153,10 @@ def report_to_dict(report: Report, assessment: Assessment) -> dict:
             "what_it_checks": info.explanation if info else "",
             "finding": f.explanation,
             "sources": [{"label": _source_label(u), "url": u} for u in f.sources if u],
+            # the agent reads these to judge each concern itself (not just trust the assessment):
+            "reliability": info.reliability if info else "",
+            "blind_spots": info.reliability_advanced if info else "",
+            "benchmark": info.evaluation if info else "",
         }
 
     c = report.claim
