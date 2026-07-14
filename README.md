@@ -1,5 +1,7 @@
 # BioSkeptic
 
+**Try it live: [bioskeptic.onrender.com](https://bioskeptic.onrender.com/)**
+
 BioSkeptic gives an AI better tools to check a drug–target–disease idea against real biological evidence —
 so its answer is something you can **verify**, not just something that sounds right.
 
