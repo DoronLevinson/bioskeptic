@@ -5,7 +5,7 @@
 BioSkeptic gives an AI better tools to check a drug–target–disease idea against real biological evidence —
 so its answer is something you can **verify**, not just something that sounds right.
 
-<!-- demo video goes here -->
+**▶ [Watch the 3-minute demo](https://www.youtube.com/watch?v=oYrEbjehWsg)**
 
 ## Introduction
 
